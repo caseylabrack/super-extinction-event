@@ -5,18 +5,48 @@ __lua__
 --casey labrack
 
 --todo:
- --launch game under a challenge (gold, silver, bronze?)
- 	--ptero dropping eggs
- 	--can jump (volcano)
- 	--time scale?
- 	--slow time?
- 	--just roids; volcano; trex
- 	--hypercubes
- 	--ptero can swoop up over obstacles
- 		--so we can have multiple obstacles
- 		--ptero's idle is perched
+ --spinosaurus: fish pop up
+ 	--you grab, roid near misses 
+ 	--pop them out of your mouth
+ 	--and in the air again
+	--egg crack game mode
+	--2p is palm tree and egg goals
+		--at the same time
+	--stego mode: push a boulder
+		--into a tarpit
+		
+--😐
+	--mult is # in a row?
+	--score threshold to unlock
+		--extra hard mode variant
+		--(like meat boy hell world)
+		--rex mode. and hyperex mode
+		--crown appears on dino
+		--roids lethal only in rex mode?
+	--score animation is dino
+		--running around circumference
+		--where 1 turn is hell world
+		--and a marker for previous best
+		--and crown at 0 degrees?
+		--replay all score callouts
+	--pickup text: "neat","rad","wicked"
+		--instead of numerical score
+		--including end of game total
+		--color the text
+	--jiggle vertices
+	--multiplier color coded
+		--maybe only color?
+	--can jump (volcano)
+	--time scale?
+	--slow time?
+	--just roids; volcano; trex
+	--hypercubes
+	--ptero can swoop up over obstacles
+		--so we can have multiple obstacles
+		--ptero's idle is perched
 	--hypercube
 	--stars
+	--add occasion eggs to plant games and vice versa
  --respawn animation: egg hatch
 	--gameover animation
 		--every game ends with the big one?
@@ -33,17 +63,14 @@ __lua__
 
 log=""
 
-defaultchallenge=3
+defaultchallenge=1
 --challenges:
 --1: trex
 --2: volcano
 --3: eggs
+--4: egg volcano
 
-medals={
-{100,200,400},
-{100,200,400},
-{100,200,400},
-}
+rexgoals={350,100,100,100}
 
 function _init()
 
@@ -59,10 +86,12 @@ function reinit()
 	⧗=0 --tick (frame count)
 	g⧗=60 --game time
 	score=0
+	oldhs=0 --old high score
 	mult=1
 	mult2=0
 	lmult2=0
 	shake=0
+	gameover=false
 	
 	stara=0
 	trexs={}
@@ -71,13 +100,15 @@ function reinit()
 	ss={}
 	rs={}
 	parts={}
-	bo={x=-64,y=-64,r=0,c=6,
+	bo={x=-64,y=-64,r=0,c=6,enabled=true,
 	fr=1,frames={bigonepts}}
 	eggs={}
 	ebirds={} --egg birds
+	isrex=false
+	scores={}
 	
 	--player
-	p={x=64,y=29,r=0,state="idle",e=true,dx=0,dy=0,
+	p={x=64,y=29,r=0,state="idle",enabled=true,dx=0,dy=0,
 		--angle, delta angle, mag, delta mag, grounded
 	 a=.25,da=0,m=37,dm=0,gr=true,
 		--speed, facing direction,
@@ -88,8 +119,9 @@ function reinit()
 	 fr=1,frames={bronto_idle,bronto_run1,bronto_run2,}
 	}
 	
-	pdead={x=0,y=-37,r=0,c=p.c,⧗=0,e=false,fr=1,frames={}}
+	pdead={x=0,y=-37,r=0,c=p.c,⧗=0,enabled=false,fr=1,frames={}}
 	e={x=0,y=0,a=0,r=0,s=.01,d=1,c=130,
+		enabled=true,
 		fr=1,frames={earthconts}}
 
 	--center artwork on origin
@@ -101,12 +133,23 @@ function reinit()
 	p.x=0
 	p.y=-30
 	p.parent=e
-
+	
+	cr={x=0,y=0,r=0,enabled=false,
+		fr=1,frames={crownpts},c=7}
+	cr.parent=p
+	cr.y=-16	cr.x=7
+	
 	chal=stat(6)
 	if chal=="" then
 		chal=""..defaultchallenge
 	end
  chal=tonum(chal)
+
+	oldhs=dget(chal)
+	if oldhs>rexgoals[chal] then
+		isrex=true
+		cr.enabled=true
+	end
 
 	if contains({2},chal) then
 		spawnvolcano()
@@ -122,24 +165,25 @@ function reinit()
 	end
 	
 	if contains({3},chal) then
---		dropeggs=true
 		spawnptero()
 		lethalroids=true
 	end
+	
+	if contains({4},chal) then
+		spawnvolcano()
+		spawnptero()
+		lethalroids=true
+	end
+	
+--	g⧗=1
+--	scores={5,10,17,8,10,19,4,2,6}
+--	scores={5,17,19,4}
 end
 
 function _update()
 
 	⧗+=1
-
-	if g⧗==0 then
-		
---		dset(chal,)
-		if btnp(❎) then
-			reinit()
-		end
-		return
-	end
+	e.x,e.y=0,0
 
 	if ⧗%60==0 then
 --	if g⧗>0 then
@@ -148,7 +192,7 @@ function _update()
 	
 	stara+=.001
 
-	if p.e then	mult+=1 end
+	if p.enabled then	mult+=1 end
 
 	lmult2=mult2
 	zpct=mid(.1,mid(1,mult,1000)/1000,1)
@@ -156,9 +200,7 @@ function _update()
 --	zpct=mid(1,mult,1000)/1000
 --	zpct=easeoutcubic(zpct)
 	mult2=ceil(20*zpct)
-		
-	e.r+=.01
-	
+			
 	--big one approaches
 	local pct=g⧗/60
 	local impact=0--49
@@ -169,13 +211,69 @@ function _update()
 	bo.y=sin(.375)*d
 
 	--dramatic shaking right before impact
-	if g⧗<6 then
+	if g⧗<8 and g⧗>0 then
 		local pct=1-g⧗/6
-		local pct=easeinexpo(pct)
-		local mx=14*pct
+--		local pct=easeinexpo(pct)
+		local pct=pct*pct*pct
+		local mx=12*pct
+--		e.x=rnd()*mx
+--		e.y=rnd()*mx
 		bo.x+=rnd()*mx
 		bo.y+=rnd()*mx
 	end	
+	
+	--gameover handle
+	if g⧗==0 and not gameover then
+		gameover=true
+		e⧗=0 --ticks since gameover
+
+		--score
+		score=0
+		rscore=0 --running score
+		nscore=#scores
+		for s in all(scores) do
+			score+=s
+		end	
+		if score>oldhs then
+			dset(chal,score)
+		end
+
+		pdead.enabled=false
+
+		local todestroy=tconcat({bo,e,p,cr},rs,vs,trexs,trees,ebirds,ss,eggs)
+
+		for d in all(todestroy) do		
+			if not d.enabled then goto destroycontinue end
+			d.enabled=false		
+			local lines=ent2lineparts(d)		
+			for part in all(lines) do
+				local a=atan2(part.x,part.y)
+				local d=disto(part.x,part.y)
+				local f=1/d*60
+				part.dx,part.dy=cos(a)*f,sin(a)*f
+				part.f=rndr(.9,.95)
+				part.⧗=rndr(10,60)
+				part.dr=rndr(-0.005,.005)
+				add(parts,part)
+			end 
+			::destroycontinue::
+		end		
+	end
+
+	doparticles()
+
+	if gameover then 
+		e⧗+=1 
+	
+		if e⧗>30 then
+			if btnp(❎) then
+				reinit()
+			end
+		end		
+	end
+	if gameover then return end
+	
+	e.r+=.01
 	
 	--do egg pterodactyls
 	for eb in all(ebirds) do
@@ -184,6 +282,7 @@ function _update()
 			if eb.⧗<eb.f⧗ then
 				local t=eb.⧗/eb.f⧗
 				t=easeinoutcubic(t)
+				eb.t=t
 				local a=(eb.ea-eb.sa)*t+eb.sa
 				eb.x,eb.y=cos(a)*55,sin(a)*55			
 			else
@@ -191,50 +290,77 @@ function _update()
 				eb.⧗=0
 			end
 		elseif eb.state=="drop" then
-			if eb.⧗==15 then
+			if eb.⧗==1 then
 				--drop egg
 				local egg={}
 				local a=atan2(eb.x,eb.y)
 				egg.x,egg.y=eb.x,eb.y
-				egg.dx,egg.dy=cos(a+.5)/1.5,sin(a+.5)/1.5
-				egg.r=.75
+				egg.dx,egg.dy=cos(a+.5)/3,sin(a+.5)/3
+				egg.r=a+.75
+				egg.c=7 egg.enabled=true
+				egg.fr=1 egg.frames={eggpts}
 				add(eggs,egg)
 				
 				eb.f⧗=rndr(60,180)
 				eb.sa=a
-				eb.ea=a+rndr(.25,1)
+				eb.ea=a+rndr(.5,1.5)
 				eb.state="fly"
 				eb.⧗=0
 			end
 		end	
+		local a=atan2(eb.x,eb.y)
+		eb.r=a+.75
+		local flapr=30 --flap rate
+		flapr-=(1-abs(.5-eb.t))*16
+		if ⧗%flapr<(flapr/2) then
+			eb.fr=1
+		else
+			eb.fr=2
+		end
 	end
 	
 	--eggs	
 	for egg in all(eggs) do
 		egg.x+=egg.dx
 		egg.y+=egg.dy
+		egg.r+=.01
 		
-		local gpx,gpy=gpos(p)	
-		log=dist(gpx,gpy,egg.x,egg.y)	
+		local gpx,gpy=gpos(p)
+		local ga=atan2(gpx,gpy)
+		local ea=atan2(egg.x,egg.y)
 		
-		if dist(gpx,gpy,egg.x,egg.y)<5 then
+		if distt(egg,e)<35  
+			and abs(sad(ga,ea))<.04 then
 			ep={}
 			ep.x,ep.y=egg.x,egg.y
 			ep.⧗=30 ep.c=9
-			local a=atan2(ep.x,ep.y)
-			ep.x+=cos(a)*20
-			ep.y+=sin(a)*20
-			ep.dx,ep.dy=cos(a)*2,sin(a)*2
+--			local a=atan2(ep.x,ep.y)
+			ep.x+=cos(ea)*20
+			ep.y+=sin(ea)*20
+			ep.dx,ep.dy=cos(ea)*2,sin(ea)*2
 			ep.f=.8
 			ep.type="text"
-			ep.label="+"..(mult2*100)
+			ep.label="+"..mult2
 			add(parts,ep)
 			del(eggs,egg)
 			
 			score+=mult2
+			add(scores,mult2)
 		end
 		
+		--egg smash
 		if distt(egg,e)<30 then
+		
+			local lines=ent2lineparts(egg)		
+			for part in all(lines) do
+				part.dx=egg.dx*-1*6
+				part.dy=egg.dy*-1*6
+				part.f=.7--rndr(.7,2)
+				part.g=.1
+				part.⧗=rndr(10,30)
+				part.dr=rndr(-0.05,.05)
+				add(parts,part)
+			end 
 			del(eggs,egg)
 		end
 	end
@@ -246,6 +372,7 @@ function _update()
 		roid.x,roid.y=cos(a)*70,sin(a)*70
 		roid.dx,roid.dy=cos(a+.5),sin(a+.5)
 		roid.r=rnd() roid.c=141--134
+		roid.enabled=true
 		roid.fr=ceil(rnd()+.5) roid.frames={roidspr1,roidspr2}
 		add(rs,roid)
 	end
@@ -257,7 +384,7 @@ function _update()
 		
 		--roid particle
 		local rp={}
-		rp.x,rp.y=roid.x+roid.dx*8+rndr(-2,2),roid.y+roid.dy*8+rndr(-2,2)
+		rp.x,rp.y=roid.x+roid.dx*4+rndr(-2,2),roid.y+roid.dy*4+rndr(-2,2)
 		local ra=atan2(rp.x,rp.y)
 		rp.dx,rp.dy=cos(ra)*9,sin(ra)*9
 		rp.type="point"
@@ -269,6 +396,7 @@ function _update()
 			local s={⧗=0}
 			s.x,s.y,s.r=roid.x,roid.y,0
 			s.d=1 s.r=0 s.fr=1 s.c=9
+			s.enabled=true
 			s.frames={impactpts}
 			addchild(e,s)
 			add(ss,s)
@@ -286,8 +414,7 @@ function _update()
 				p.gr=false
 				p.dm+=6*pct
 			end
-			if lethalroids and abs(diff)<.04 then
---				stop("die")
+			if lethalroids and abs(diff)<.04 and p.enabled then
 				playerdied()
 			end
 		end
@@ -308,11 +435,11 @@ function _update()
 	--record position last frame
 	p.lpx,p.lpy=gpos(p)
 	
-	if pdead.e then
+	if pdead.enabled then
 		pdead.⧗+=1
 	end
 	
-	if p.e then
+	if p.enabled then
 		p.state="idle"
 		if btn(⬅️) then
 			if p.gr then p.da+=p.s p.d=-1 end
@@ -371,18 +498,22 @@ function _update()
 	else
 		if pdead.⧗>60 then
 			if btn()~=0 then
-				p.e=true
+				p.enabled=true
 				p.parent=nil
 				p.x,p.y,p.da=0,-37,0
+				p.dx,p.dy,p.dm,p.gr=0,0,0,true
+				p.m=37
+				p.d=1
 				addchild(e,p)
-				pdead.e=false
+				pdead.enabled=false
 				pdead.⧗=0
+				if isrex then cr.enabled=true end
 			end
 		end	
 	end
 		
 	--eat leaves
-	if p.e then
+	if p.enabled then
 		for tree in all(trees) do
 			local myangle=atan2(tree.x,tree.y)
 			local pangle=atan2(p.x,p.y)
@@ -427,11 +558,12 @@ function _update()
 					tp.dx,tp.dy=cos(a)*2,sin(a)*2
 					tp.f=.8
 					tp.type="text"
-					tp.label="+"..(mult2*100)
+					tp.label="+"..mult2
 					add(parts,tp)
 
 					del(trees,tree)
 					score+=mult2
+					add(scores,mult2)
 					spawntree()
 				end								
 			end 
@@ -440,31 +572,14 @@ function _update()
 	
 	--trex chase
 	for t in all(trexs) do	
-		if p.e then
+		if p.enabled then
 			pa=atan2(p.x,p.y)
 			ta=atan2(t.x,t.y)
 			
 			--player killed
 			diff=sad(pa,ta)
 			if abs(diff)<.05 then
-				p.e=false
-				pdead.e=true
-				p.dm,p.m,p.gr=0,37,true
-				mult=0
-				local dinoparts=p2ls(pushtransforms(p))
-				for dp in all(dinoparts) do
-					dp.type="line"
-					dp.⧗=40+rndr(-20,20)
-					local px,py=gpos(p)
-					dp.dx,dp.dy=(px-p.lpx)*rnd()/2,(py-p.lpy)*rnd()/2
-					dp.dr=.0025
-					local x1,y1=dp[1],dp[2]
-					local x2,y2=dp[3],dp[4]
-					--midpoint
-					dp.mx,dp.my=(x2-x1)/2,(y2-y1)/2
-					dp.c=p.c
-					add(parts,dp)
-				end
+				playerdied()
 			elseif abs(diff)<.3 then
 				ta+=t.s*sgn(diff)*-1
 				t.x=cos(ta)*36
@@ -485,53 +600,7 @@ function _update()
 		else
 			t.fr=1		
 		end
-	end
-
-	--do particles
-	for part in all(parts) do
-		part.⧗-=1
-		if part.⧗<0 then
-			del(parts,part)
-		end
-		if part.type=="line" then
---			local x1,y1=part[1],part[2]
---			local x2,y2=part[3],part[4]
---			local a=atan2(x1-part.mx,y1-part.mx)
---			local d=dist(x1,y1,part.mx,part.my)
---			a+=part.dr
---			part[1]=part.mx+cos(a)*d
---			part[2]=part.my+sin(a)*d
---			part[3]=part.mx-cos(a+.5)*d
---			part[4]=part.my-sin(a+.5)*d
-		
-			part[1]+=part.dx
-			part[3]+=part.dx
-			part[2]+=part.dy
-			part[4]+=part.dy
---			part.r+=part.dr
-		end
-		if part.type=="point" then
-			if part.g then
-				local a=atan2(part.x,part.y)
-				part.dx+=cos(a+.5)*part.g
-				part.dy+=sin(a+.5)*part.g
-			end
-			
-			part.x+=part.dx
-			part.y+=part.dy
-			part.dx*=part.f or 1
-			part.dy*=part.f or 1
-			
-			
-		end
-		if part.type=="text" then
-			part.x+=part.dx
-			part.y+=part.dy
-			part.dx*=part.f or 1
-			part.dy*=part.f or 1
-		end
-	end
-	
+	end	
 end
 
 function _draw()
@@ -571,19 +640,24 @@ function _draw()
 	end
 	
 	for egg in all(eggs) do
-		circ(egg.x,egg.y,4,14)
+		render_ent(egg)
+--		circ(egg.x,egg.y,4,14)
 	end
 	
 	--earth surface,fill
-	circfill(e.x,e.y,29,0)	
-	circ(e.x,e.y,29,e.c)
+	if not gameover then
+		circfill(e.x,e.y,29,0)	
+		circ(e.x,e.y,29,e.c)
+	end
 	--	circ(0,0,3,11)--ctr ref
 		
 	for roid in all(rs) do
 		render_ent(roid)
 	end
+	
+	render_ent(cr)
 		
-	if p.e then 
+	if p.enabled then 
 		render_ent(p)
 	else
 		if pdead.⧗>60 then
@@ -599,17 +673,23 @@ function _draw()
 	end
 	
 	for eb in all(ebirds) do
-		rect(eb.x,eb.y,eb.x+5,eb.y+5,15)
+		render_ent(eb)
+--		rect(eb.x,eb.y,eb.x+5,eb.y+5,15)
 	end
-	
-		
+			
 	render_ent(bo)
-	print("the\nbig\none",bo.x-6,bo.y-8,bo.c)
-
+	if bo.enabled~=false then
+		print("the\nbig\none",bo.x-6,bo.y-8,bo.c)
+	end
 		
 	for part in all(parts) do
 		if part.type=="line" then
-			line(part[1],part[2],part[3],part[4],part.c)
+--			line(part[1],part[2],part[3],part[4],part.c)
+			local x1=part.x+cos(part.a)*part.d
+			local x2=part.x-cos(part.a)*part.d
+			local y1=part.y+sin(part.a)*part.d
+			local y2=part.y-sin(part.a)*part.d
+			line(x1,y1,x2,y2,part.c)
 		end
 		if part.type=="point" then
 			local px,py=gpos(part)
@@ -620,13 +700,87 @@ function _draw()
 			cprint(part.label,px,py,part.c)
 		end
 	end
+	
+	
+	if gameover then
+		cprint("extinct!",0,-34,6)
+		
+		local endline=max(score,max(oldhs,rexgoals[chal]))
+		
+		local rpct=mid(0,e⧗/30,1)
+		circ(0,0,128-65*rpct,2)
+		
+		if e⧗>45 then
+		
+			e2⧗=e⧗-45
+			
+			--track
+			line(-34,0,34,0,5)
+			
+			if #scores>0 then
+				if e2⧗%(flr(60/nscore))==0 then
+					sc=deli(scores,1)					
+					rscore+=sc
+					
+					z={}
+					z.x=-34+34*2*(rscore/endline)
+					z.y=0
+					z.⧗=30 z.c=9
+					z.dx,z.dy=0,rndr(-3,-1)
+					z.f=.8
+					z.type="text"
+					
+					z.label="+"..sc		
+					add(parts,z)
+				end
+				
+			end
+
+			local scorep=rscore/endline
+			local endpoint=-34+(34*2)*scorep
+			line(-34,0,endpoint,0,10)			
+			circ(endpoint,0,1)
+			
+			hspct=oldhs/endline
+			hsmark=-34+(34*2)*hspct-1
+			spr(16,hsmark,2)
+
+			local col=6
+			if rscore>oldhs then
+				if e⧗%6==0 then
+					col=9
+				end
+				cprint("new best!",0,18,col) 
+			end
+			print("best",hsmark-6,5,col)
+			
+			goalpct=rexgoals[chal]/endline
+			goalcr=translate(crownpts,34+-34*2*goalpct,8)
+			local col=6
+			if rscore>rexgoals[chal] then
+				if e⧗%6==0 then
+					col=9
+				end
+				local msg="beat the rex score!"
+				if oldhs<rexgoals[chal] then
+					msg="unlocked rex mode!"				
+				end
+				cprint(msg,0,26,col)
+			end
+			
+			renderpoly(goalcr,col)
+			spr(16,-34+34*2*goalpct-1,-10,1,1,false,true)
+			
+			cprint("❎ try again",0,42,6)
+		end
+	end
 
 	camera()
 		
 --	line(0,126,128*(g⧗/60),126,7)	
 		
 	print(log,0,10,11)
-	print("multx: ",0,113,7)
+	print("X",0,113,7)
 	color(7)
 	if lmult2~=mult2 then
 		color(9)
@@ -634,36 +788,54 @@ function _draw()
 	if mult2==20 then
 		if ⧗%4==0 then color(9) end
 	end
-	if g⧗==0 then print("gameover! hit ❎",0,8,14) end
-	if g⧗==0 then 
-		local troph="none"
-		if score>medals[chal][1] then	troph="bronze" end
-		if score>medals[chal][2] then	troph="silver" end
-		if score>medals[chal][3] then	troph="gold" end
-		print("medal: "..troph,0,14,14) 
-	end	
-	print("       "..mult2,0,113)
-	print("score: "..score,0,120,7)
+	print(" "..mult2,0,113)
+	print(" "..score,0,120,7)
 end
 
 function playerdied()
-	p.e=false
-	pdead.e=true
+	p.enabled=false
+	pdead.enabled=true
 	p.dm,p.m,p.gr=0,37,true
 	mult=0
-	local dinoparts=p2ls(pushtransforms(p))
+	local px,py=gpos(p)
+	local dinoparts=ent2lineparts(p)
 	for dp in all(dinoparts) do
-		dp.type="line"
-		dp.⧗=40+rndr(-20,20)
-		local px,py=gpos(p)
 		dp.dx,dp.dy=(px-p.lpx)*rnd()/2,(py-p.lpy)*rnd()/2
+		dp.⧗=40+rndr(-20,20)
 		dp.dr=.0025
-		local x1,y1=dp[1],dp[2]
-		local x2,y2=dp[3],dp[4]
-		--midpoint
-		dp.mx,dp.my=(x2-x1)/2,(y2-y1)/2
-		dp.c=p.c
 		add(parts,dp)
+	end
+	
+	if cr.enabled then
+		cr.enabled=false
+		local crparts=ent2lineparts(cr)
+		for cr in all(crparts) do
+			cr.dx,cr.dy=(px-p.lpx)*rnd()/2,(py-p.lpy)*rnd()/2
+			cr.⧗=40+rndr(-20,20)
+			cr.dr=.0025
+			add(parts,cr)
+		end
+	end
+end
+
+function doparticles()
+	for part in all(parts) do
+		part.⧗-=1
+		if part.⧗<0 then
+			del(parts,part)
+		end
+		if part.type=="line" then
+			part.a+=part.dr or 0
+		end
+		if part.g then
+			local a=atan2(part.x,part.y)
+			part.dx+=cos(a+.5)*part.g
+			part.dy+=sin(a+.5)*part.g
+		end			
+		part.x+=part.dx
+		part.y+=part.dy
+		part.dx*=part.f or 1
+		part.dy*=part.f or 1
 	end
 end
 -->8
@@ -691,6 +863,19 @@ end
 --random range, from low to high not inclusive
 function rndr(low,high)
 	return low+rnd(high-low)
+end
+
+--table concat
+--sequences (arrays) only
+function tconcat(...) 
+ local result={}
+ local arrays={...}
+	for array in all(arrays) do
+		for _,v in ipairs(array) do
+			add(result,v)
+		end
+	end	
+	return result
 end
 
 --unsigned angle difference:
@@ -760,14 +945,38 @@ function p2ls(pts)
 	return lx
 end
 
+--entity to line particles
+function ent2lineparts(e)
+	epoints=p2ls(pushtransforms(e))
+	eparts={}
+	for part in all(epoints) do
+		part.x,part.y=(part[3]+part[1])/2,(part[4]+part[2])/2
+		part.c=e.c or 8 
+		part.⧗=30
+		part.a=atan2(part.x-part[1],part.y-part[2])
+		part.d=dist(part[1],part[2],part[3],part[4])/2		
+		part.f=1
+		part.dx,part.dy=0,0
+		part.type="line"
+		add(eparts,part)
+	end
+	return eparts
+end
+
 function translate(ps,x,y)
 	local os={}
-	
 	for i=1,#ps,2 do
 		add(os,ps[i]-x)
 		add(os,ps[i+1]-y)
+	end	
+	return os
+end
+
+function jiggle(ps,a)
+	local os={}
+	for p in all(ps) do
+		add(os,p+rndr(-a,a))
 	end
-	
 	return os
 end
 
@@ -814,6 +1023,22 @@ function grote(e)
 	return myrote
 end
 
+function gposr(e)
+	local obj=e
+	local x,y,r=e.x,e.y,e.r
+	
+	while(obj.parent) do
+		local a=atan2(x*obj.parent.d,y)+obj.parent.r
+		local d=disto(x*obj.parent.d,y)
+		x=obj.parent.x+cos(a)*d
+		y=obj.parent.y+sin(a)*d
+		r=obj.parent.r+(obj.r or 0)
+		obj=obj.parent
+	end
+
+	return x,y,r	
+end
+
 function addchild(parent,child)
 	local lx,ly=global2local(child,parent)
 	child.x,child.y=lx,ly
@@ -838,23 +1063,49 @@ function renderpoly(ps,c)
 	line(ps[1],ps[2])
 end
 
+--function pushtransforms(e)
+--	local es=e.scale or 1
+--	local frame=e.frames[e.fr]
+--	local scaled=scale(frame,(e.d or 1)*es,1*es)
+--	local rotated=rotate(scaled,grote(e))
+--	local x,y=gpos(e)
+--	return translate(rotated,-x,-y)
+--end
+
 function pushtransforms(e)
 	local es=e.scale or 1
 	local frame=e.frames[e.fr]
-	local scaled=scale(frame,(e.d or 1)*es,1*es)
-	local rotated=rotate(scaled,grote(e))
-	local x,y=gpos(e)
+	local scaled=scale(frame,(e.d or 1)*es,1*es)	
+	local x,y,r=gposr(e)
+	local rotated=rotate(scaled,r)
 	return translate(rotated,-x,-y)
 end
 
+--function render_ent(e)
+--	if e.enabled==false then return end
+--	local es=e.scale or 1
+--	local frame=e.frames[e.fr]
+--	local scaled=scale(frame,(e.d or 1)*es,1*es)
+--	local rotated=rotate(scaled,grote(e))
+--	local x,y=gpos(e)
+--	local translated=translate(rotated,-x,-y)
+--	renderpoly(translated,e.c)
+--end
+
+--function render_ent(e)
+--	if e.enabled==false then return end
+--	local es=e.scale or 1
+--	local frame=e.frames[e.fr]
+--	local scaled=scale(frame,(e.d or 1)*es,1*es)	
+--	local x,y,r=gposr(e)
+--	local rotated=rotate(scaled,r)
+--	local translated=translate(rotated,-x,-y)
+--	renderpoly(translated,e.c)	
+--end
+
 function render_ent(e)
-	local es=e.scale or 1
-	local frame=e.frames[e.fr]
-	local scaled=scale(frame,(e.d or 1)*es,1*es)
-	local rotated=rotate(scaled,grote(e))
-	local x,y=gpos(e)
-	local translated=translate(rotated,-x,-y)
-	renderpoly(translated,e.c)
+	if e.enabled==false then return end	
+	renderpoly(pushtransforms(e),e.c)	
 end
 
 --render ent multiframe
@@ -873,7 +1124,7 @@ end
 function spawntree()
 	local a=rnd()
 	local t={x=cos(a)*30,y=sin(a)*30,
-	r=a+.75,d=1,c=10,
+	r=a+.75,d=1,c=10,enabled=true,
  --eat count
 	ec=0,
 	fr=1,frames={treepts}}
@@ -883,6 +1134,7 @@ end
 
 function spawntrex()
 	local t={x=0,y=0,r=0,d=1,c=14,s=.005,
+		enabled=true,
 		fr=1,frames={trexidle,trexrun1,trexrun2,}
 	}
 	
@@ -901,6 +1153,7 @@ function spawnvolcano()
 	v.c=6
 	v.parent=e
 	v.fr=1
+	v.enabled=true
 	v.frames={volcanopts}
 	add(vs,v)
 end
@@ -909,12 +1162,17 @@ function spawnptero()
 	local p={}
 	local a=rnd()
 	p.x,p.y=cos(a)*55,sin(a)*55
+	p.enabled=true
 	p.r=.75
 	p.state="fly"
 	p.⧗=0
 	p.f⧗=rndr(60,180)--final time (til drop egg)
 	p.sa=0--start angle
 	p.ea=rnd()--end angle
+	p.c=7
+	p.fr=1
+	p.frames={pteropts1,pteropts2}
+	p.d=-1
 	add(ebirds,p)
 end
 -->8
@@ -942,14 +1200,40 @@ volcanopts=split("0.51,-5.58,3.95,-7.66,4.34,-4.68,5.81,-0.56,8.39,5.51,-6.37,5.
 
 --bigonepts=split("-3.94,12.52,8.19,11,10,-0.93,7.61,-11.19,-2.5,-11.17,-13.37,-13.36,-11.22,-2.23,-9.72,4.15,-3.94,12.52")
 --bigonepts=split("18.69,8.41,19.42,3.67,21.58,-1.29,16.31,-4.76,16.48,-10.04,14.44,-15.3,10.58,-20.11,4.71,-21.44,-0.46,-15.2,-6.84,-19.45,-8.73,-12.36,-14.23,-11.02,-19.36,-7.54,-16.22,-1.17,-16.37,3.54,-19.24,9.79,-17.33,15.67,-10.4,16.79,-5.89,19.19,-1.31,22.88,3.6,16.78,7.74,16.19,13.09,16.32,17.77,13.74,18.69,8.41")
-bigonepts=split("17.91,8.7,19.11,3.75,19.71,-1.4,17.31,-6.02,15.47,-10.76,12.24,-14.89,7.9,-18.11,2.64,-19.48,-2.57,-17.79,-7.98,-17.98,-11.79,-14.16,-15.99,-11.13,-19.3,-6.89,-19.45,-1.49,-19.5,3.59,-19.31,8.97,-16.91,13.87,-12.35,16.87,-7.83,19.43,-2.92,21.44,2.22,19.79,7.02,18.66,11.77,16.82,15.75,13.44,17.91,8.7")
+--bigonepts=split("17.91,8.7,19.11,3.75,19.71,-1.4,17.31,-6.02,15.47,-10.76,12.24,-14.89,7.9,-18.11,2.64,-19.48,-2.57,-17.79,-7.98,-17.98,-11.79,-14.16,-15.99,-11.13,-19.3,-6.89,-19.45,-1.49,-19.5,3.59,-19.31,8.97,-16.91,13.87,-12.35,16.87,-7.83,19.43,-2.92,21.44,2.22,19.79,7.02,18.66,11.77,16.82,15.75,13.44,17.91,8.7")
+bigonepts=split("18.92,8.7,20.12,3.75,20.72,-1.4,18.32,-6.02,16.48,-10.76,13.25,-14.89,8.92,-18.11,3.65,-19.48,-1.56,-17.79,-6.97,-17.98,-10.78,-14.16,-14.98,-11.13,-18.29,-6.89,-18.43,-1.49,-19.49,2.59,-18.3,8.97,-15.9,13.87,-11.33,16.87,-6.82,19.43,-1.91,21.44,3.23,19.79,8.03,18.66,12.79,16.82,16.76,13.44,18.92,8.7")
+
+--pteropts1=split("-12.5,2.5,-4.19,-2.28,0.9,-0.48,2.5,-1.5,1.5,-4.5,4.5,-3.5,6.5,-1.5,9.5,0.5,4.5,0.5,2.89,1.66,0.5,1.5,4.5,4.5,2.5,4.5,-0.99,9.36,-3.45,4.97,-2.6,3.03,-4.63,0.75,-5.5,1.5,-7.54,1.14,-12.5,2.5")
+--pteropts2=split("-12.5,6.5,-4.19,1.72,-3.5,-4.5,0.9,3.52,2.5,2.5,1.5,-0.5,4.5,0.5,6.5,2.5,9.5,4.5,4.5,4.5,2.89,5.66,0.5,5.5,-2.6,7.03,-4.63,4.75,-5.5,5.5,-7.54,5.14,-12.5,6.5")
+pteropts1=split("-9.49,2.5,-1.18,-2.28,-0.49,-8.5,3.91,-0.48,5.51,-1.5,4.51,-4.5,7.51,-3.5,9.51,-1.5,12.51,0.5,7.51,0.5,5.9,1.66,3.51,1.5,0.41,3.03,-1.62,0.75,-2.49,1.5,-4.53,1.14,-9.49,2.5")
+pteropts2=split("-10.49,1.5,-2.18,-3.28,2.91,-1.48,4.51,-2.5,3.51,-5.5,6.51,-4.5,8.51,-2.5,11.51,-0.5,6.51,-0.5,4.9,0.66,2.51,0.5,6.51,3.5,4.51,3.5,1.02,8.36,-1.44,3.97,-0.59,2.03,-2.62,-0.25,-3.49,0.5,-5.53,0.14,-10.49,1.5")
+
+--eggpts=split("1.49,-4.05,1.37,-4.16,1.24,-4.25,1.11,-4.33,0.98,-4.39,0.86,-4.44,0.74,-4.47,0.62,-4.49,0.51,-4.5,0.4,-4.49,0.28,-4.47,0.16,-4.44,0.04,-4.39,-0.09,-4.33,-0.22,-4.25,-0.35,-4.16,-0.47,-4.05,-0.95,-3.37,-1.55,-2.19,-2.13,-0.68,-2.54,0.97,-2.63,2.57,-2.25,3.94,-1.25,4.9,0.51,5.26,2.27,4.9,3.27,3.94,3.65,2.57,3.56,0.97,3.15,-0.68,2.57,-2.19,1.97,-3.37,1.49,-4.05,1.49,-4.05")
+eggpts=split("1.51,2.5,2.51,1.5,2.51,-1.5,0.51,-3.5,-1.49,-1.5,-1.49,1.5,-0.49,2.5,1.51,2.5")
+
+crownpts=split("-4,-4,-2,-2,0,-4,2,-2,4,-4,4,2,-4,2,-4,-4")
 __gfx__
+00000000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000070700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0070070070007000a0a0a00090909000a0a0a0a0000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000
+0007700070007000a0a0a00090909000aa0a0aa00000000a000000000000000a0a00000000000000000000000000000000000000000000000000000000000000
+0007700070007000a0a0a00090909000a00000a0000a0aa0aa0a000000000aa000aa000000000000000000000000000000000000000000000000000000000000
+0070070007770000aaaaa00099999000a00000a000a0a00a00a0a0000000a00a0a00a00000000000000000000000000000000000000000000000000000000000
+0000000000000000aaaaa00099999000a00000a0000a0000000a0000000a0000a0000a0000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000aaaaaaa00000a00000a0000000a00000000000a000000000000000000000000000000000000000000000000000000000
+06000000000000000000000000000000000000000000a00000a000000a00aaaaaaaa000a00000000000000000000000000000000000000000000000000000000
+66600000a000a000a0000000000000000000000000000aaaaa0000000a0a00000000a00a00000000000000000000000000000000000000000000000000000000
+00000000aa0a0a0aa0000000000000000000000000000000000000000aa0a0000000000000000000000000000000000000000000000000000000000000000000
+00000000a0a000a0a0000000000000000000000000000000000000000a0a00000000000000000000000000000000000000000000000000000000000000000000
+00000000a0000000a0000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000000000
+00000000a0000000a0000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000000000
+00000000aaaaaaaaa00000000000000000000000000000000000000000aa00000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000a0a0a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000aa0aa0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000a000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000a000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000aaaaa0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

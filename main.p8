@@ -5,7 +5,9 @@ index=1
 
 scenarios={
 "trex",
-"volcano"
+"volcano",
+"egg",
+"egg and volcano"
 }
 
 function _init()
