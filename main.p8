@@ -4,10 +4,10 @@ __lua__
 index=1
 
 scenarios={
-"trex",
-"volcano",
-"egg",
-"egg and volcano"
+"brontosaurus",
+"oviraptor",
+"spinosaurus",
+--"lizard thing (todo)",
 }
 
 function _init()
