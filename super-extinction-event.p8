@@ -1,33 +1,15 @@
 pico-8 cartridge // http://www.pico-8.com
-version 42
+version 43
 __lua__
 --super extinction event
 --casey labrack
 
 --todo:
- --spinosaurus: fish pop up
- 	--you grab, roid near misses 
- 	--pop them out of your mouth
- 	--and in the air again
- 	--(skew fish to wiggle?)
- 	--score is how many fish in
- 	--mouth at the end
- 	--when reversing, 2x feet
- 		--animation
- 	--make mouth the origin? fish
- 	--in a projected 1d line
-	--mammal(? lizard?) mode:
-		--ptero drops eggs which roll
-		--eccentricly around and stop
-		--you pick them up but ptero
-		--dives at you if it has los
-	--egg crack game mode
-	--2p is palm tree and egg goals
-		--at the same time
-	--stego mode: push a boulder
-		--into a tarpit
+	--select rex mode from main
+	--scoring	
 		
 --😐
+	--graph of score?
 	--score screen also show deaths
 	--main screen:
 		--dinosaur name,eating type
@@ -41,6 +23,16 @@ __lua__
 		--keep earth between you breaking
 		--line of sight
 		--mammal?
+	--mammal(? lizard?) mode:
+		--ptero drops eggs which roll
+		--eccentricly around and stop
+		--you pick them up but ptero
+		--dives at you if it has los
+	--egg crack game mode
+	--2p is palm tree and egg goals
+		--at the same time
+	--stego mode: push a boulder
+		--into a tarpit
 	--warp vertices of earth or player
 		--based on impacts?
 		--like squash and stretch?
@@ -66,13 +58,11 @@ __lua__
 		--instead of numerical score
 		--including end of game total
 		--color the text
-	--jiggle vertices
 	--multiplier color coded
 		--maybe only color?
 	--can jump (volcano)
 	--time scale?
 	--slow time?
-	--just roids; volcano; trex
 	--hypercubes
 	--ptero can swoop up over obstacles
 		--so we can have multiple obstacles
@@ -89,20 +79,23 @@ __lua__
 		--trophy flies from foreground (scaled up), down and crashes through last troph (silver->gold)
 	--hitstop maybe
 	--leaves are round, scales down
- --pterodactyl pushed by roids, bronto killed?
  --bronto stands to eat animation?
 	--"super extinction challenge"?
 	--'nautilus' is pretty nice for this
 
 log=""
 
-defaultchallenge=3
+defaultchallenge=1
 --challenges:
 --1: brontosaurus
 --2: oviraptor
 --3: spinosaurus
 
 rexgoals={350,100,20,}
+
+--debug
+sar=.05 --spino angle range
+sdr=38  --spino distance range
 
 function _init()
 
@@ -147,9 +140,9 @@ function reinit()
 	--player
 	p={x=64,y=29,r=0,state="idle",enabled=true,dx=0,dy=0,
 		--angle, delta angle, mag, delta mag, grounded
-	 a=.25,da=0,m=37,dm=0,
+	 a=.25,da=0,m=30,dm=0,
 		--target mag, grounded
-	 tm=40,gr=true,
+	 tm=30,gr=true,
 		--speed, facing direction,
 	 s=.004,d=1,c=15,
 	 --last position
@@ -158,7 +151,7 @@ function reinit()
 	 fr=1,frames={bronto_idle,bronto_run1,bronto_run2,}
 	}
 	
-	pdead={x=0,y=-37,r=0,c=p.c,⧗=0,enabled=false,fr=1,frames={}}
+	pdead={x=0,y=-p.tm,r=0,c=p.c,⧗=0,enabled=false,fr=1,frames={}}
 	
 	e={x=0,y=0,a=0,r=0,s=.01,d=1,c=130,
 		enabled=true,
@@ -183,9 +176,9 @@ function reinit()
 
 	oldhs=dget(chal)
 	if oldhs>rexgoals[chal] then
-		isrex=true
-		cr.enabled=true
-		lethalroids=true
+--		isrex=true
+--		cr.enabled=true
+--		lethalroids=true
 	end
 
 	if contains({1},chal) then
@@ -205,36 +198,40 @@ function reinit()
 		p.cf={} --caught fish
 		p.jaw=new_ent()
 		addchild(p,p.jaw)
-		p.jaw.x,p.jaw.y=0,0
+		p.jaw.x,p.jaw.y=0,-12
+--		lethalroids=true
+
+--		for i=1,10 do
+--	 	local f=new_ent()
+--	 	f.x,f.y,f.r,f.frames,f.scale=
+--	 	p.x,p.y,rnd(),{fish_idle},.5
+--			f.c=3
+--			addchild(p.jaw,f)
+--			f.x=4+8*rnd()
+--			f.y=rnd()*3
+--	 	add(p.cf,f)		
+--		end
 	end
 	
 --	g⧗=1
 --	scores={5,10,17,8,10,19,4,2,6}
 --	scores={5,17,19,4}
 
---	for i=1,10 do
--- 	local f=new_ent()
--- 	f.x,f.y,f.r,f.frames,f.scale=
--- 	p.x,p.y,rnd(),{fish_idle},.5
---		f.c=3
---		addchild(p.jaw,f)
---		f.x=4+8*rnd()
---		f.y=-6+rnd()*3
--- 	add(p.cf,f)		
---	end
-
+	music(0)
 end
 
 function _update()
 
+	local note=stat"50"
+	local patt=stat"54"
+	--total game time (0..1)
+	g⧗=(patt*32+note)/(13*32-16)
+	--big one shake time when <0
+	bo⧗=(12*32)-(patt*32+note)
+
 	⧗+=1
 	e.x,e.y=0,0
 
-	if ⧗%60==0 then
---	if g⧗>0 then
-		g⧗-=1
-	end
-	
 	stara+=.001
 
 	if p.enabled then	mult+=1 end
@@ -247,7 +244,7 @@ function _update()
 	mult2=ceil(20*zpct)
 			
 	--big one approaches
-	local pct=g⧗/60
+	local pct=1-g⧗/1
 	local impact=0--49
 	local startdist=78
 	local travel=startdist-impact
@@ -256,19 +253,17 @@ function _update()
 	bo.y=sin(.375)*d
 
 	--dramatic shaking right before impact
-	if g⧗<8 and g⧗>0 then
-		local pct=1-g⧗/6
---		local pct=easeinexpo(pct)
+	if bo⧗<0 then
+		local pct=abs(bo⧗)/16
 		local pct=pct*pct*pct
 		local mx=12*pct
---		e.x=rnd()*mx
---		e.y=rnd()*mx
-		bo.x+=rnd()*mx
-		bo.y+=rnd()*mx
+		local a=rnd()
+		bo.x+=cos(a)*mx
+		bo.y+=sin(a)*mx
 	end	
 	
 	--gameover handle
-	if g⧗==0 and not gameover then
+	if g⧗==1 and not gameover then
 		gameover=true
 		e⧗=0 --ticks since gameover
 
@@ -317,8 +312,7 @@ function _update()
 			end
 		end
 	end
-	if gameover then return end
-	
+	if gameover then return end	
 	
 	e.r+=.01
 
@@ -334,6 +328,13 @@ function _update()
 	for fish in all(fs) do
 		local a=atan2(fish.x,fish.y)
 		fish.⧗+=1
+		if fish.from=="spino" then
+			if ⧗%6<2 then
+				fish.enabled=false
+			else
+				fish.enabled=true
+			end
+		end
 
 		if fish.state=="swim" then
 			local d=fish.m
@@ -353,19 +354,29 @@ function _update()
 			--wait for upward phase
 			if fish.⧗>120 then
 				if fish.ph%25==0 then
+					fish.x,fish.y=gpos(fish)
+					fish.parent=nil
 					fish.state="jump"
 					fish.⧗=0
 					fish.dm=2
 					fish.dr=rnd()*.1-.05
+					fish.da=fish.d*rnd(.005)
 				end
 			end
 		end
 		if fish.state=="jump" then
 			if fish.⧗>30 then fish.cable=true	end
-			fish.dm-=.075
-			fish.m+=fish.dm
-			fish.x=cos(a+fish.da)*fish.m
-			fish.y=sin(a+fish.da)*fish.m
+			local a=atan2(fish.x,fish.y)
+			local df=fish.from=="spino" and .5 or 1 --death factor
+			
+			fish.dm-=.075*df
+			fish.m+=fish.dm*df
+			a+=fish.da*df
+			
+--			fish.x=cos(a+fish.da)*fish.m
+			fish.x=cos(a)*fish.m
+--			fish.y=sin(a+fish.da)*fish.m
+			fish.y=sin(a)*fish.m
 			fish.r+=fish.dr
 			if distot(fish)<30 then
 --				fish.state="missed"
@@ -375,10 +386,12 @@ function _update()
 					local a2=rnd()
 					fp.x,fp.y=fish.x+cos(a2)*5,fish.y+sin(a2)*5
 					local s=rndr(-.1,.1)
+					addchild(e,fp)
+					local a=atan2(fp.x,fp.y)
 					fp.dx,fp.dy=cos(a+s)*3,sin(a+s)*3
 					fp.type="point"
 					fp.⧗=8 fp.c=12
-					fp.parent=e
+--					fp.parent=e
 					fp.f=.99
 					fp.g=.75
 
@@ -508,7 +521,7 @@ function _update()
 		add(parts,rp)
 		
 		if distt(roid,e)<30 then
-			del(rs,roid) --probably do don't this
+			del(rs,roid)
 			local s={⧗=0}
 			s.x,s.y,s.r=roid.x,roid.y,0
 			s.d=1 s.r=0 s.fr=1 s.c=9
@@ -533,15 +546,15 @@ function _update()
 				if abs(diff)<.05 then
 					for fish in all(p.cf) do
 						local f=new_ent()
-						f.x,f.y=gpos(p)
-						addchild(e,f)
+						f.x,f.y=gpos(p.jaw)
 						f.dx=cos(pa+.5)*5
 						f.dy=sin(pa+.5)*5
 						f.⧗=0
+						f.from="spino"
 						f.state="jump"
 						f.dm=1.5+rnd()
 						f.dr=rnd()*.1-.05
-						f.da=rnd()*.005*sgn(diff)
+						f.da=rnd(.0025)*sgn(diff)
 						f.m=distot(p)
 						f.frames={fish_idle}
 						f.c=3
@@ -572,6 +585,7 @@ function _update()
 
 	--	function player() end	
 	--player
+	
 	--record position last frame
 	p.lpx,p.lpy=gpos(p)
 	
@@ -602,11 +616,6 @@ function _update()
 		end
 
 		if p.dino=="spino" then
-			if btn(🅾️) then
---				p.jaw.r+=.01 p.fr=2
-			else
---				p.jaw.r=0 p.fr=1
-			end
 			p.d=1
 			--run state 2bit bitfield
 			--0b01 running or still
@@ -614,9 +623,12 @@ function _update()
 			local rst=0
 			
 			if p.state=="run" then rst+=0b01 end
-			pa=atan2(p.x,p.y)
+--			pa=atan2(p.x,p.y)
+			pa=atan2(gpos(p))
 			for fish in all(fs) do	
 				if fish.state=="jump" then
+--					fa=atan2(fish.x,fish.y)
+--					local fposx,fposy=gpos(fish)
 					fa=atan2(fish.x,fish.y)
 					diff=sad(pa,fa)
 					if abs(diff)<.25 then rst+=0b10 break end
@@ -648,18 +660,20 @@ function _update()
 
 			--catch fish
 			for fish in all(fs) do
+				local fa=atan2(gpos(fish))
+				local pa=atan2(gpos(p))
 				if fish.state=="jump" and
 					fish.cable and
-				 distt(p,fish)<5 then
+					distot(fish)<sdr and
+				 abs(sad(fa,pa))<sar then
 				 	del(fs,fish)
 				 	local f=new_ent()
 				 	f.x,f.y,f.r,f.frames,f.scale=
-				 	p.x,p.y,rnd(),{fish_idle},.5
+ 				 	p.x,p.y,rnd(),{fish_idle},.5
 						f.c=3
---						addchild(p,f)
 						addchild(p.jaw,f)
 						f.x=4+8*rnd()
-						f.y=-6+rnd()*3
+						f.y=0+rnd()*3
 				 	add(p.cf,f)
 				 	
 				 	for particle in all(parts) do
@@ -689,9 +703,9 @@ function _update()
 		if not p.gr then
 			p.dm-=1 --gravity
 			p.m+=p.dm
-			if p.m<37 then
+			if p.m<p.tm then
 				p.gr=true
-				p.m=37
+				p.m=p.tm
 				p.dm=0
 			end
 		end
@@ -724,9 +738,9 @@ function _update()
 			if btn()~=0 then
 				p.enabled=true
 				p.parent=nil
-				p.x,p.y,p.da=0,-37,0
+				p.x,p.y,p.da=0,-p.tm,0
 				p.dx,p.dy,p.dm,p.gr=0,0,0,true
-				p.m=37
+				p.m=p.tm
 				p.d=1
 				addchild(e,p)
 				pdead.enabled=false
@@ -893,6 +907,13 @@ function _draw()
 	for f in all(p.cf) do
 		render_ent(f)
 	end
+
+-- debug spino range
+--	circ(0,0,sdr,10)
+--
+--	local pa=atan2(gpos(p))
+--	line(0,0,cos(pa+sar)*38,sin(pa+sar)*38,10)
+--	line(0,0,cos(pa-sar)*38,sin(pa-sar)*38,10)
 		
 	for fish in all(fs) do
 		render_ent(fish)
@@ -1023,6 +1044,7 @@ function _draw()
 	if mult2==20 then
 		if ⧗%4==0 then color(9) end
 	end
+
 --	print(" "..mult2,0,113)
 --	print(" "..score,0,120,7)
 	pal(split("129,130,14,132,133,134,135,136,137,138,139,140,141,142,143,0"),1)
@@ -1240,14 +1262,31 @@ function scale(ps,sx,sy)
 	return os
 end
 
+--function gpos(e)
+--	local p=e.parent
+--	if p then
+--		local a=atan2(e.x,e.y)+p.r
+--		local d=disto(e.x,e.y)
+--		return p.x+cos(a)*d,p.y+sin(a)*d
+--	end
+--	return e.x,e.y
+--end
+--function gpos(e)
+--	local p=e.parent
+--	local x,y,r=e.x,e.y,e.r
+--	while p~=nil do
+--		local a=atan2(p.x,p.y)
+--		local d=disto(p.x,p.y)
+--		x=p.x+cos(a)*d
+--		y=p.y+sin(a)*d
+--		r=p.r+r
+--		p=p.parent
+--	end
+--	return x,y
+--end
 function gpos(e)
-	local p=e.parent
-	if p then
-		local a=atan2(e.x,e.y)+p.r
-		local d=disto(e.x,e.y)
-		return p.x+cos(a)*d,p.y+sin(a)*d
-	end
-	return e.x,e.y
+	local x,y=gposr(e)
+	return x,y
 end
 
 function grote(e)
@@ -1441,22 +1480,16 @@ function new_ent()
 end
 -->8
 --sprites
-bronto_idle=split("-4.3165,1.3572,-8.3866,2.3748,-2.2815,-4.7479,1.7886,-4.7479,3.8236,-14.923,7.8937,-14.923,7.8937,-11.8705,5.8587,-11.8705,4.8412,-3.7303,4.3324,4.4098,2.8061,4.1554,1.7886,1.3572,-1.2639,1.3572,-1.7727,4.4098,-3.299,4.6642")
-bronto_run1=split("-4.3385,1.7254,-8.6183,1.7254,-2.1985,-4.6945,2.0814,-4.6945,6.3612,-11.1143,10.6411,-11.1143,10.6411,-7.9044,8.5012,-7.9044,5.2913,-3.6245,7.9662,3.8653,6.3612,4.6678,2.0814,1.7254,-1.1285,1.7254,-3.8035,4.9353,-5.4084,5.2028")
-bronto_run2=split("-4.377,1.7597,-8.698,1.7597,-2.2166,-4.7217,2.1044,-4.7217,6.4254,-11.2032,10.7464,-11.2032,10.7464,-7.9625,8.5859,-7.9625,5.3452,-3.6415,3.7248,5.0005,1.0242,4.7304,2.1044,1.7597,-1.1363,1.7597,-0.5962,5.0005,-3.2968,5.2705")
+bronto_idle=split("-4.3165,-4.0968,-8.3866,-3.0792,-2.2815,-10.2019,1.7886,-10.2019,3.8236,-20.377,7.8937,-20.377,7.8937,-17.3245,5.8587,-17.3245,4.8412,-9.1843,4.3324,-1.0442,2.8061,-1.2986,1.7886,-4.0968,-1.2639,-4.0968,-1.7727,-1.0442,-3.299,-0.7898")
+bronto_run1=split("-4.3385,-3.7286,-8.6183,-3.7286,-2.1985,-10.1484,2.0814,-10.1484,6.3612,-16.5683,10.6411,-16.5683,10.6411,-13.3584,8.5012,-13.3584,5.2913,-9.0785,7.9662,-1.5887,6.3612,-0.7862,2.0814,-3.7286,-1.1285,-3.7286,-3.8035,-0.5187,-5.4084,-0.2512")
+bronto_run2=split("-4.377,-3.6942,-8.698,-3.6942,-2.2166,-10.1757,2.1044,-10.1757,6.4254,-16.6572,10.7464,-16.6572,10.7464,-13.4164,8.5859,-13.4164,5.3452,-9.0955,3.7248,-0.4535,1.0242,-0.7236,2.1044,-3.6942,-1.1363,-3.6942,-0.5962,-0.4535,-3.2968,-0.1834")
 
---spino_idle=split("-26.9187,2.5292,-21.0452,-2.1225,-19.854,-5.0181,-17.4272,-6.5239,-14.46,-5.9447,-12.9599,-3.744,-11.0793,-8.4368,-0.6774,-7.6646,-0.6002,-6.002,-9.0442,-5.3842,-10.8339,-2.186,-13.8681,0.3783,-13.3503,3.5604,-14.7994,3.306,-15.8169,1.28,-18.0201,1.1256,-18.5288,4.1781,-20.0551,4.4325,-20.9113,1.5822")
---spino_idle=split("4.8922,-7.2166,-1.0834,-6.972,-1.5342,-1.6419,-4.8514,-6.078,-7.8205,-6.1108,-8.1454,-3.2242,-10.6125,-3.059,-8.7925,0.9672,-13.7764,6.7889,-8.2556,2.9062,-5.9168,4.8797,-5.4344,1.8846,-1.8518,1.6002,1.3111,4.579,1.6611,1.2622,1.0913,-1.7842,1.3286,-4.5158,6.0446,-5.9028")
---spino_idle=split("10.4133,-7.5254,1.3832,-7.4032,-1.0834,-6.972,-1.5342,-1.6419,-4.8514,-6.078,-7.8205,-6.1108,-8.1454,-3.2242,-10.6125,-3.059,-8.7925,0.9672,-13.7764,6.7889,-8.2556,2.9062,-5.9168,4.8797,-5.4344,1.8846,-1.8518,1.6002,1.3111,4.579,1.6611,1.2622,1.0913,-1.7842,1.3286,-4.5158,11.5656,-6.2117")
---spino_lookup=split("0.9874,-13.9753,-1.5429,-5.7708,-1.5569,-1.6419,-4.8741,-6.078,-7.8431,-6.1108,-8.168,-3.2242,-10.6352,-3.059,-8.8151,1.2948,-13.7991,6.7889,-8.2782,2.9062,-5.9394,4.8797,-5.4571,1.8846,-1.8745,1.6002,1.2885,4.579,1.6385,1.2622,1.0687,-1.7842,1.3059,-4.5158,2.795,-14.0265")
-spino_lookup=split("0.9874,-9.9753,-1.5429,-1.7708,-1.5569,2.3581,-4.8741,-2.078,-7.8431,-2.1108,-8.168,0.7758,-10.6352,0.941,-8.8151,5.2948,-13.7991,10.7889,-8.2782,6.9062,-5.9394,8.8797,-5.4571,5.8846,-1.8745,5.6002,1.2885,8.579,1.6385,5.2622,1.0687,2.2158,1.3059,-0.5158,2.795,-10.0265")
---spino_catch=split("-0.3763,-14.1172,-2.0868,-5.655,-1.5216,-1.6419,-4.8388,-6.078,-7.8078,-6.1108,-8.1327,-3.2242,-10.5999,-3.059,-8.9983,0.9672,-13.7638,6.7889,-8.2429,2.9062,-5.9041,4.8797,-5.4218,1.8846,-1.8392,1.6002,1.3238,4.579,1.6738,1.2622,1.104,-1.7842,2.5767,-4.5158,3.9215,-13.9368,0.498,-6.5571")
-spino_idle=split("10.4133,-3.5254,1.3832,-3.4032,-1.0834,-2.972,-1.5342,2.3581,-4.8514,-2.078,-7.8205,-2.1108,-8.1454,0.7758,-10.6125,0.941,-8.7925,4.9672,-13.7764,10.7889,-8.2556,6.9062,-5.9168,8.8797,-5.4344,5.8846,-1.8518,5.6002,1.3111,8.579,1.6611,5.2622,1.0913,2.2158,1.3286,-0.5158,11.5656,-2.2117")
-spino_catch=split("-0.3763,-10.1172,-2.0868,-1.655,-1.5216,2.3581,-4.8388,-2.078,-7.8078,-2.1108,-8.1327,0.7758,-10.5999,0.941,-8.9983,4.9672,-13.7638,10.7889,-8.2429,6.9062,-5.9041,8.8797,-5.4218,5.8846,-1.8392,5.6002,1.3238,8.579,1.6738,5.2622,1.104,2.2158,2.5767,-0.5158,3.9215,-9.9368,0.498,-2.5571")
-spino_walkin_down=split("10.4133,-3.5254,1.3832,-3.4032,-1.0834,-2.972,-1.5342,2.3581,-4.8514,-2.078,-7.8205,-2.1108,-8.1454,0.7758,-10.6125,0.941,-8.7925,4.9672,-13.7764,10.7889,-8.2556,6.9062,-4.0636,8.6481,-5.4344,5.8846,-1.8518,5.6002,-1.8548,8.4246,1.6611,5.2622,1.0913,2.2158,1.3286,-0.5158,11.5656,-2.2117")
-spino_walkin_up=split("-0.3763,-10.1172,-2.0868,-1.655,-1.5216,2.3581,-4.8388,-2.078,-7.8078,-2.1108,-8.1327,0.7758,-10.5999,0.941,-8.9983,4.9672,-13.7638,10.7889,-8.2429,6.9062,-4.0509,8.6481,-5.4218,5.8846,-1.8392,5.6002,-1.8421,8.4246,1.6738,5.2622,1.104,2.2158,2.5767,-0.5158,3.9215,-9.9368,0.498,-2.5571")
-spino_walkout_down=split("10.4133,-3.5254,1.3832,-3.4032,-1.0834,-2.972,-1.5342,2.3581,-4.8514,-2.078,-7.8205,-2.1108,-8.1454,0.7758,-10.6125,0.941,-8.7925,4.9672,-13.7764,10.7889,-8.2556,6.9062,-7.6155,9.1886,-5.4344,5.8846,-1.8518,5.6002,3.2416,8.5018,1.6611,5.2622,1.0913,2.2158,1.3286,-0.5158,11.5656,-2.2117")
-spino_walkout_up=split("-0.3763,-10.1172,-2.0868,-1.655,-1.5216,2.3581,-4.8388,-2.078,-7.8078,-2.1108,-8.1327,0.7758,-10.5999,0.941,-8.9983,4.9672,-13.7638,10.7889,-8.2429,6.9062,-7.6029,9.1886,-5.4218,5.8846,-1.8392,5.6002,3.2542,8.5018,1.6738,5.2622,1.104,2.2158,2.5767,-0.5158,3.9215,-9.9368,0.498,-2.5571")
+spino_idle=split("10.2588,-12.4154,1.2287,-12.2932,-1.2379,-11.8621,-1.6886,-6.5319,-5.0059,-10.968,-7.9749,-11.0008,-8.2998,-8.1142,-10.767,-7.949,-8.9469,-3.9229,-13.9308,1.8989,-8.41,-1.9838,-6.0712,-0.0103,-5.5888,-3.0054,-2.0063,-3.2898,1.1567,-0.311,1.5067,-3.6278,0.9369,-6.6742,1.1741,-9.4058,11.4112,-11.1017")
+spino_catch=split("-0.5308,-19.0072,-2.2412,-10.545,-1.676,-6.5319,-4.9932,-10.968,-7.9623,-11.0008,-8.2872,-8.1142,-10.7543,-7.949,-9.1527,-3.9229,-13.9182,1.8989,-8.3974,-1.9838,-6.0586,-0.0103,-5.5762,-3.0054,-1.9936,-3.2898,1.1693,-0.311,1.5193,-3.6278,0.9495,-6.6742,2.4222,-9.4058,3.7671,-18.8268,0.3436,-11.4471")
+spino_walkin_down=split("10.2588,-12.4154,1.2287,-12.2932,-1.2379,-11.8621,-1.6886,-6.5319,-5.0059,-10.968,-7.9749,-11.0008,-8.2998,-8.1142,-10.767,-7.949,-8.9469,-3.9229,-13.9308,1.8989,-8.41,-1.9838,-4.218,-0.2419,-5.5888,-3.0054,-2.0063,-3.2898,-2.0092,-0.4655,1.5067,-3.6278,0.9369,-6.6742,1.1741,-9.4058,11.4112,-11.1017")
+spino_walkin_up=split("-0.5308,-19.0072,-2.2412,-10.545,-1.676,-6.5319,-4.9932,-10.968,-7.9623,-11.0008,-8.2872,-8.1142,-10.7543,-7.949,-9.1527,-3.9229,-13.9182,1.8989,-8.3974,-1.9838,-4.2054,-0.2419,-5.5762,-3.0054,-1.9936,-3.2898,-1.9966,-0.4655,1.5193,-3.6278,0.9495,-6.6742,2.4222,-9.4058,3.7671,-18.8268,0.3436,-11.4471")
+spino_walkout_down=split("10.2588,-12.4154,1.2287,-12.2932,-1.2379,-11.8621,-1.6886,-6.5319,-5.0059,-10.968,-7.9749,-11.0008,-8.2998,-8.1142,-10.767,-7.949,-8.9469,-3.9229,-13.9308,1.8989,-8.41,-1.9838,-7.77,0.2986,-5.5888,-3.0054,-2.0063,-3.2898,3.0871,-0.3882,1.5067,-3.6278,0.9369,-6.6742,1.1741,-9.4058,11.4112,-11.1017")
+spino_walkout_up=split("-0.5308,-19.0072,-2.2412,-10.545,-1.676,-6.5319,-4.9932,-10.968,-7.9623,-11.0008,-8.2872,-8.1142,-10.7543,-7.949,-9.1527,-3.9229,-13.9182,1.8989,-8.3974,-1.9838,-7.7574,0.2986,-5.5762,-3.0054,-1.9936,-3.2898,3.0998,-0.3882,1.5193,-3.6278,0.9495,-6.6742,2.4222,-9.4058,3.7671,-18.8268,0.3436,-11.4471")
 
 
 fish_idle=split("2.966,0.3563,0.3131,-1.9715,-2.4948,-0.1495,-4.4568,-1.4231,-3.639,2.1466,-2.3091,0.9423,0.0767,2.289")
@@ -1754,4 +1787,33 @@ n0n0nnn000000000000000000000000000000000000000q000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+__sfx__
+01100000281502015025150271501f15025150261501e15024150251501c15020150281502015025150271501f15025150261501e15024150251501c150201502c15020150251502a15021150251502d1501e150
+01100000251502c15020150251502a1501e150251512a1501e15025150281501e15024151281501c15025150281502015025150271501f15025150261501e15024150251501c1502015028150201502515027150
+011000001f15025150261501e15024150251501c150201502c15020150251502a15021150251502d1501e150251502c150201502515031150251502d1502f150261502d15032150261502c15031150251502d150
+01100000361502d15033150341502c1503115032150291502f150311502a1502d15032150291502f150311502a1502d1502f150261502c1502d150251502a1502d150241502a1502c15025150281502a15021150
+01100000271502815023150251502615021150251502d15021150251502715022150251502f15021150251502815023150271502f150231502715030150241502a150311502515028150341502c1503115033150
+011000002b15031150321502a1503015031150281502c150341502c15031150331502b15031150321502a1503015031150281502c150341502c15031150331502b15031150321502a1503015031150281502c150
+01100000381502c15031150361502d15031150391502a15031150381502c15031150361502a15031151361502a15031150341502a15030151341502815031150341502c15031150331502b15031150321502a150
+011000003015031150281502c150381502c15031150361502d15031150391502a15031150381502c150311503b15032150381503915031150361503e150351503b1503c150361503915239142391323912239112
+011000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3110000015611156111561115611156211562115621156310d1700d1700d1700d1700d1700d1700d1700d1700d1700d1700d1700d1700d1700d1700d1700d1700d1000d1000d1000d1000d1000d1000d1000d100
+3110000000000000000000000000000000000000000000000962109621156211562121621216212d6213962101470014700147001470014700147001470014700147001470014700147001470014700147001470
+011000001561115611156111561115621156211562115631216112161121611216112161121611216112161101170011700117001170011700117001170011700117001170011700117001170011700117001170
+__music__
+00 00414344
+00 01424344
+00 02424344
+00 03424344
+00 00414344
+00 01424344
+00 02424344
+00 03424344
+00 04424344
+00 05424344
+00 06424344
+00 07424344
+00 0b4b4344
 
