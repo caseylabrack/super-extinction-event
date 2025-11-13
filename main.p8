@@ -1,58 +1,146 @@
 pico-8 cartridge // http://www.pico-8.com
-version 42
+version 43
 __lua__
-index=1
+#include common.lua
 
+--big zoom from space to dino
+	--on earth
+
+dino=1
+mode=1 --1 for normal,2 for rex
+state=1 --1 for dino, 2 for mode
+⧗=1
+ru={} --rex unlocked
+
+function _init()
+	cartdata("caseylabrack_superdino")
+
+	add(ru,dget(1)>rexgoals[1])
+	add(ru,dget(2)>rexgoals[2])
+	add(ru,dget(3)>rexgoals[3])
+end
+
+function _update()
+
+	⧗+=1
+
+	if state==1 then
+		if btnp(⬆️) then dino=mid(1,dino-1,#scenarios) end		
+		if btnp(⬇️) then dino=mid(1,dino+1,#scenarios) end
+	else
+		if btnp(⬆️) then mode=mid(1,mode-1,2) end		
+		if btnp(⬇️) then mode=mid(1,mode+1,2) end
+		if not ru[dino] then mode=1 end
+	end
+
+	if btnp(🅾️) then
+		state=mid(1,state-1,2)
+	end
+	
+	if btnp(❎) then
+		state+=1
+		if state==3 then
+			load("super-extinction-event",
+			"back to menu",
+			dino..","..mode)			
+		end
+	end
+end
+
+function _draw()
+	cls()
+
+	dinostart=10
+	ypos=dinostart
+	tml=4 --text margin left
+	iml=60 --info margin left
+	fc=⧗%8>4 and 13 or 12 --flicker color
+	
+	local cur=dinostart+(dino-1)*10
+	color(state==1 and fc or 1)
+	rect(tml-2,cur-2,52,cur+6)
+	
+	color(state==1 and 7 or 1)
+	for num,val in ipairs(scenarios) do
+		print(val,tml,ypos)
+		ypos+=10
+	end
+
+	if state==1 then
+		print(dinfo[dino],iml,dinostart+(dino-1)*10,13)
+	end
+
+	ypos+=64
+	modestart=ypos	
+
+	cur=modestart+(mode-1)*8
+	if state==2 then
+		rect(tml-2,cur-2,52,cur+6,fc)
+	end
+
+	color(state==2 and 7 or 1)
+	print("hatchling",tml,ypos)
+	ypos+=8
+	if not ru[dino] then
+		color(1)
+	end
+	print("rex mode",tml,ypos)
+	
+	if state==2 then
+		print(minfo[mode],iml,modestart+(mode-1)*8,13)
+	end
+end
+-->8
 scenarios={
 "brontosaurus",
 "oviraptor",
 "spinosaurus",
 --"lizard thing (todo)",
 }
+dinfo={[[
+class:
+herbivore
 
-function _init()
-	cartdata("caseylabrack_superdino")
-end
+dislikes:
+t-rex!
 
-function _update()
-	
-	if btnp(⬇️) then
-		index+=1
-	end
-	
-	if btnp(⬆️) then
-		index-=1
-	end
+scoring:
+based on streak
+(reset on death)
+]],
+[[
+class:
+ovivore (eggs)
 
-	if index>#scenarios then index=1 end
-	if index<1 then index=#scenarios end
+dislikes:
+obstacles
 
-	if btnp(❎) then
-		load("super-extinction-event",
-		"back to menu",
-		index)
-	end
+scoring:
+based on streak
+(reset on miss)
+]],
+[[
+class:
+piscovore (fish)
 
---	if btnp(🅾️) then
---		load("super-extinction-event","menu","1")
---	end
---	if btnp(❎) then
---		load("super-extinction-event","menu","2")
---	end
-end
+dislikes:
+megalodon!
 
-function _draw()
-	cls(1)
-	
-	ypos=10
-	for num,val in ipairs(scenarios) do
-		if num==index then
-			print("◆",14,ypos,rnd({13,14}))
-		end
-		print(val,20,ypos,11)
-		ypos+=10
-	end
-end
+scoring:
+total fish held
+at game over
+]]
+}
+minfo={
+[[
+eat up before the 
+big one hits
+]],
+[[
+all asteroids
+are deadly
+]]
+}
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
