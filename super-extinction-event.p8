@@ -1354,6 +1354,23 @@ function renderpoly(ps,c)
 	line(ps[1],ps[2])
 end
 
+--function renderpoly(ps,c)
+--	color(c or 7)
+--	local x1=mid(-64,ps[1],63)
+--	local y1=mid(-64,ps[2],63)
+--	local x2=mid(-64,ps[3],63)
+--	local y2=mid(-64,ps[4],63)
+----	line(ps[1],ps[2],ps[3],ps[4])
+--	if x1!=0 and y1!=0 and x2!=0 and y2!=0 then line(x1,y1,x2,y2) end
+--	for i=5,#ps,2 do
+--		local x3=mid(-64,ps[i],63)
+--		local y3=mid(-64,ps[i+1],63)
+--		if x3!=0 and y3!=0 then line(x3,y3) end
+--	end	
+--	if x1!=0 and y1!=0 then line(x1,y1) end
+--end
+
+
 --function pushtransforms(e)
 --	local es=e.scale or 1
 --	local frame=e.frames[e.fr]
