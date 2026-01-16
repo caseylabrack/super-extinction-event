@@ -1,37 +1,57 @@
 pico-8 cartridge // http://www.pico-8.com
-version 42
+version 43
 __lua__
-c=8
-ao=0 --angle offset
+c1={x=36,y=48,r=24}
+c2={x=48,y=64,r=24}
+c3={x=64,y=48,r=24}
+
+cs={}
+add(cs,c1)
+add(cs,c2)
+add(cs,c3)
+
+angle=0
+points={}
 
 function _init()
-	
+
 end
 
 function _update()
-	ao+=.001
-	
-	if btn(⬆️) then
-		ao+=.001
-	end
+
+
+--	for c in all(cs) do
+--		c.x+=c.dx
+--		c.y+=c.dy
+--		c.x=c.x%128
+--		c.y=c.y%128
+--	end
 end
 
 function _draw()
-	cls(0)
-	
---	camera(-64,-64)
-	for i=1,500 do
-		local a=(i+ao)*1.618
-		local r=c*i--c*sqrt(i)
-		local x=cos(a)*r
-		local y=sin(a)*r
-		if mid(0,x,128)==x and
-			mid(0,y,128)==y then
-				pset(x,y,6)		
-		end
-	end
-	camera()
-	print(stat(1))
+ cls(0)
+	circfill(cs[1].x,cs[1].y,cs[1].r,1)
+ memcpy(0x8000, 0x6000, 0x2000)
+ cls(0)
+	circfill(cs[2].x,cs[2].y,cs[2].r,2)
+ memcpy(0xA000, 0x6000, 0x2000)
+ cls(0)
+	circfill(cs[3].x,cs[3].y,cs[3].r,4)
+ for addr = 0x6000, 0x7FFF, 4 do
+  poke4(addr, $addr | $(addr + 0x2000) | $(addr + 0x4000))
+ end
+
+	pal(1,12,1) --cyan
+	pal(2,14,1) --magenta
+	pal(4,10,1) --yellow
+
+	pal(3,140,1) --cyan+mag=dblue
+	pal(6,8,1) --cyan+yel=red
+	pal(5,3,1) --mag+yel=green
+
+	pal(7,0,1)
+	pal(0,7,1)
+
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

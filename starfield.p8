@@ -3,7 +3,6 @@ version 43
 __lua__
 --todo
 ---more trees
----type fix
 ---lods?
 
 stars={}
@@ -78,13 +77,14 @@ function _init()
 	pts[1].frames[2]=translate(pteropts2,-25,-20)
 	
 	for i=1,100 do
-		add(stars,{
+		local star={
 			x=rnd()*256-128,
 			y=rnd()*256-128,
-			z=rnd()*128
-		})
-	end
-	
+			z=rnd()*128,
+		}
+		star.pz=star.z
+		add(stars,star)
+	end	
 end
 
 function _update()
@@ -109,8 +109,8 @@ function _update()
 	end
 	
 	if state=="munch" then
-		tree.r=rnd()*.01
-		bronto.r=rnd()*.02
+--		tree.r=rnd()*.01
+		bronto.r=rnd()*.01
 
 		if ⧗-stst>120 then
 			state="zoomout1"
@@ -127,7 +127,7 @@ function _update()
 		local tn=3*32
 		mpct=((pat-1)*32+note)/tn
 		local pow=1-mpct
-		mpct=1-pow*pow*pow*pow
+		mpct=1-pow*pow*pow*pow*pow*pow
 		
 		local sscale=100
 		local escale=1
@@ -143,7 +143,7 @@ function _update()
 		local pct=note/31
 		bronto.scale=1-pct
 		tree.scale=1-pct
-		tree.r=rnd()*.01
+		bronto.r=rnd()*.01
 		for t in all(ts) do
 			t.scale=1-pct
 		end
@@ -170,33 +170,35 @@ function _update()
 	e.frames={cvd(earth2f,72/e.scale)}
 
 	if pat==4 and ppat~=4 then
-		addword("extinction",-74,-6)		
+		addword("extinction",-63,-6)		
 	end
 
 	if pat==5 then
 		if contains({1,},note) and
 			not contains({1,5,9},pnote) then
-			addword("super",-36,-26)
+			addword("super",-30,-26)
 		end
 		
 		if contains({16},note) and
 			not contains({16,20,24},pnote) then
-			addword("event",-36,16)
+			addword("event",-30,16)
 		end
 	end			
 		
 	for star in all(stars) do
+		star.pz=star.z
 		star.z-=2
 		if star.z<1 then
 			star.x=rnd()*256-128
 			star.y=rnd()*256-128
 			star.z=128
+			star.pz=128
 		end
 	end
 	
 	for seg in all(segs) do
 		for p in all(seg) do
-			if p.z<192 then p.z+=4 end
+			if p.z<128 then p.z=mid(p.z,p.z+4,128) end
 		end
 	end
 	
@@ -211,8 +213,8 @@ function _draw()
 	
 	for star in all(stars) do
 		local x,y=zoom(star)
-		local r=(1-star.z/128)*2
-		circfill(x,y,r,7)
+		local x2,y2=zoom(star,"pz")
+		line(x,y,x2,y2,7)
 	end
 	
 	circfill(0,0,29*e.scale,0)
@@ -231,34 +233,34 @@ function _draw()
 		render_ent(pt)	
 	end
 	
-	
 	color(8)
-	for seg in all(segs) do		
-		local x1,y1=zoom(seg[1])
-		local x2,y2=zoom(seg[2])
-		line(x1,y1,x2,y2)
-
-		for i=3,#seg do
-			line(zoom(seg[i]))
-		end
+	for seg in all(segs) do
+		line()
+		for pair in all(seg) do
+			local x,y=zoom(pair)
+			line(x,y)
+		end	
 	end
-
+	
 pal(split("129,130,14,132,133,134,135,136,137,138,139,140,141,142,143,0"),1)
 
 camera()
---print("mpct: "..mpct,0,10,12)
+print("mpct: "..mpct,0,10,12)
 
 end
 
-function zoom (e)
-	local x1=(e.x/e.z)*128
-	local y1=(e.y/e.z)*128
+--zoom the point based on
+--z property or a specified
+--depth property name
+function zoom (e,depth)
+	local depth=depth or "z"
+	local x1=(e.x/e[depth])*128
+	local y1=(e.y/e[depth])*128
 	return x1,y1
 end
 
 function addword (str,xoff,yoff)
 	local word=str
---	local xoff,yoff=-76,-6
 	
 	for i=1,#word do
 		local letter=fonts[word[i]]
@@ -272,14 +274,13 @@ function addword (str,xoff,yoff)
 				add(seg,{
 					x=pair[1]+xoff,
 					y=12-pair[2]+yoff,
---					z=256
 					z=0
 				})
 			end
 		end
 		add(segs,seg)
 		
-		xoff=xoff+16
+		xoff=xoff+13
 	end
 end
 -->8

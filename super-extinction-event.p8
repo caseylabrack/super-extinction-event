@@ -7,7 +7,7 @@ __lua__
 --todo:
 	--scoring
 		--separate high score for rex
-	--test a shark in spinosaurus
+	--big shark splash effect
 		
 --😐
 	--spino mode has a shark?
@@ -72,17 +72,15 @@ __lua__
 	--"super extinction challenge"?
 	--'nautilus' is pretty nice for this
 
-#include common.lua
+#include main.p8:2
 
 log=""
 
-defaultchallenge=1
+defaultchallenge=3
 --challenges:
 --1: brontosaurus
 --2: oviraptor
 --3: spinosaurus
-
---rexgoals={50,100,20,}
 
 --debug
 sar=.05 --spino angle range
@@ -118,7 +116,7 @@ function reinit()
 	stara=0
 	trexs={}
 	trees={}
-	sharks={}
+	sks={} --sharks
 	vs={} -- volcanos
 	ss={} -- explosions
 	rs={} -- roids
@@ -174,6 +172,7 @@ function reinit()
  chal=tonum(chal)
 	oldhs=dget(chal)
 	
+--	mode=2
 	if mode==2 then
 		isrex=true
 		cr.enabled=true
@@ -200,29 +199,9 @@ function reinit()
 		p.jaw.x,p.jaw.y=0,-12
 		cr.x,cr.y=0,0
 		addchild(p.jaw,cr)
-		cr.x,cr.y=1,-4
-		
-		shark=new_ent()
-		shark.c=6
-		shark.frames={shark_fin,shark_attack}
-	
-
---		for i=1,10 do
---	 	local f=new_ent()
---	 	f.x,f.y,f.r,f.frames,f.scale=
---	 	p.x,p.y,rnd(),{fish_idle},.5
---			f.c=3
---			addchild(p.jaw,f)
---			f.x=4+8*rnd()
---			f.y=rnd()*3
---	 	add(p.cf,f)		
---		end
+		cr.x,cr.y=1,-4			
 	end
 	
---	g⧗=1
---	scores={5,10,17,8,10,19,4,2,6}
---	scores={5,17,19,4}
-
 	music(0)
 end
 
@@ -278,7 +257,7 @@ function _update()
 
 		pdead.enabled=false
 
-		local todestroy=tconcat({bo,e,p,cr},rs,vs,trexs,trees,ebirds,ss,eggs)
+		local todestroy=tconcat({bo,e,p,cr},rs,vs,trexs,trees,ebirds,ss,eggs,sks,fs,p.cf)
 
 		for d in all(todestroy) do		
 			if not d.enabled then goto destroycontinue end
@@ -314,6 +293,97 @@ function _update()
 	
 	e.r+=.01
 
+ -- function sharks()
+ if chal==3 and #sks==0 then
+ 	if rnd()>.98 then
+ 		local shark=new_ent()
+			shark.c=7
+			shark.d=-1
+			shark.frames={shark_fin,shark_attack}
+			shark.fr=1
+			shark.r=rnd()
+			shark.⧗=0
+			shark.enabled=true
+			shark.state="rising"
+			add(sks,shark)
+		end
+ end 
+ 
+ for s in all(sks) do
+ 	s.⧗+=1
+		if s.state=="rising" then
+			s.fr=1
+			s.r-=.0006
+			s.scale=mid(0,s.⧗/120,1)
+			if s.⧗>120 then
+				s.state="idle"
+				s.⧗=0
+			end
+		end
+		if s.state=="idle" then
+			s.r-=.0006
+			local x,y=gposr(p)
+			local pa=atan2(x,y)
+			local r=s.r
+			local diff=sad(pa,r+.25)
+		
+			if abs(diff)<.05 and s.state=="idle" then
+				s.state="warmup"
+				s.⧗=0
+				ep={}
+				ep.x,ep.y=cos(s.r+.25)*30,sin(s.r+.25)*30
+				ep.⧗=30 ep.c=7
+				local a=s.r+.25+rndr(-.05,.05)
+				ep.dx,ep.dy=cos(a)*rndr(2,4),sin(a)*rndr(2,4)
+				ep.f=.8
+				ep.type="text"
+				ep.label="!"
+				add(parts,ep)
+				
+				ep2={}
+				ep2.x,ep2.y=cos(s.r+.25)*30,sin(s.r+.25)*30
+				ep2.⧗=30 ep2.c=7
+				a=a+.05
+				ep2.dx,ep2.dy=cos(a)*rndr(2,4),sin(a)*rndr(2,4)
+				ep2.f=.8
+				ep2.type="text"
+				ep2.label="?"
+				add(parts,ep2)
+			end
+		end
+			
+		if s.state=="warmup" then
+			local a=rnd()
+			s.x=cos(a)*rnd()*2
+			s.y=sin(a)*rnd()*2
+			if s.⧗==60 then
+				s.state="attack"
+				s.⧗=0
+			end
+		end
+		
+		if s.state=="attack" then
+			s.fr=2
+			s.r-=.01
+			s.scale=mid(1,1-s.⧗/90,0)
+						
+			local x,y=gposr(p)
+			local pa=atan2(x,y)
+			local r=s.r
+			local diff=sad(pa,r+.25)
+			
+			if s.⧗<26 and diff<.06 and diff>0 and p.enabled then
+				drop_fish()
+				playerdied()
+			end
+			
+			if s.⧗==90 then
+				del(sks,s)
+			end
+		end
+ end
+ 
+
 --	function fish()
 		
 	--spawn fish
@@ -327,11 +397,7 @@ function _update()
 		local a=atan2(fish.x,fish.y)
 		fish.⧗+=1
 		if fish.from=="spino" then
-			if ⧗%6<2 then
-				fish.enabled=false
-			else
-				fish.enabled=true
-			end
+			fish.enabled=⧗%6<2
 		end
 
 		if fish.state=="swim" then
@@ -358,7 +424,7 @@ function _update()
 					fish.⧗=0
 					fish.dm=2
 					fish.dr=rnd()*.1-.05
-					fish.da=fish.d*rnd(.005)
+					fish.da=fish.d*rnd(.0025)
 				end
 			end
 		end
@@ -399,7 +465,6 @@ function _update()
 			end
 		end
 	end
-	
 	
 	--do egg pterodactyls
 	for eb in all(ebirds) do
@@ -517,7 +582,7 @@ function _update()
 		rp.dx,rp.dy=cos(ra)*9,sin(ra)*9
 		rp.type="point"
 		rp.⧗=4 rp.c=5 rp.f=.25
-		add(parts,rp)
+--		add(parts,rp)
 		
 		if distt(roid,e)<30 then
 			del(rs,roid)
@@ -540,30 +605,13 @@ function _update()
 				pct=pct*pct
 				p.da+=pct*.075*sgn(diff)
 				p.gr=false
-				p.dm+=6*pct
-				
-				if abs(diff)<.05 then
-					for fish in all(p.cf) do
-						local f=new_ent()
-						f.x,f.y=gpos(p.jaw)
-						f.dx=cos(pa+.5)*5
-						f.dy=sin(pa+.5)*5
-						f.⧗=0
-						f.from="spino"
-						f.state="jump"
-						f.dm=1.5+rnd()
-						f.dr=rnd()*.1-.05
-						f.da=rnd(.0025)*sgn(diff)
-						f.m=distot(p)
-						f.frames={fish_idle}
-						f.c=3
-						add(fs,f)
-						del(p.cf,fish)
-						add(scores,-1)
-					end				
-				end
-								
+				p.dm+=6*pct				
 			end
+			
+			if abs(diff)<.06 then
+				drop_fish()
+			end
+			
 			if lethalroids and abs(diff)<.04 and p.enabled then
 				playerdied()
 			end
@@ -894,9 +942,9 @@ function _draw()
 		end
 	end
 
-	
---	render_ent(shark)
-
+	for s in all(sks) do
+		render_ent(s)
+	end
 	
 	--earth surface,fill
 	if not gameover then
@@ -1052,8 +1100,8 @@ function _draw()
 		
 --	line(0,126,128*(g⧗/60),126,7)	
 		
-	print(log,0,10,11)
---	print("X",0,113,7)
+--	print(log,0,10,11)
+	print(log,0,113,7)
 	color(7)
 
 	local st=0
@@ -1090,6 +1138,27 @@ function playerdied()
 			add(parts,cr)
 		end
 	end	
+end
+
+function drop_fish()
+	for fish in all(p.cf) do
+		local f=new_ent()
+		f.x,f.y=gpos(p.jaw)
+		f.dx=cos(pa+.5)*5
+		f.dy=sin(pa+.5)*5
+		f.⧗=0
+		f.from="spino"
+		f.state="jump"
+		f.dm=1.5+rnd()
+		f.dr=rnd()*.1-.05
+		f.da=rnd(.0025)*sgn(diff)
+		f.m=distot(p)
+		f.frames={fish_idle}
+		f.c=3
+		add(fs,f)
+		del(p.cf,fish)
+		add(scores,-1)
+	end
 end
 
 function doparticles()
@@ -1441,7 +1510,9 @@ function spawntree()
 end
 
 function spawnfish()
-	local f={x=0,y=0,c=3,s=.0075,
+	local f={x=0,y=0,c=3,
+		s=.0075,
+--		s=.0025,
 		m=30,dm=0,da=0,
 		enabled=true,d=1,scale=.1,
 		⧗=0,state="swim",
@@ -1453,7 +1524,7 @@ function spawnfish()
 	f.x=cos(a)*24
 	f.y=sin(a)*24
 	f.r=a+.5
-	f.parent=e
+--	f.parent=e
 	f.d=rnd()>.5 and -1 or 1
 	add(fs,f)
 end
@@ -1527,7 +1598,8 @@ spino_walkout_up=split("-0.5308,-19.0072,-2.2412,-10.545,-1.676,-6.5319,-4.9932,
 fish_idle=split("2.966,0.3563,0.3131,-1.9715,-2.4948,-0.1495,-4.4568,-1.4231,-3.639,2.1466,-2.3091,0.9423,0.0767,2.289")
 
 shark_fin=split("-3.2515,-28.8674,1.1896,-33.4672,5.4721,-35.3705,5.948,-34.0223,5.3928,-31.8017,5.6307,-29.5019,7.0582,-27.2813,-3.3309,-27.5192")
-shark_attack=split("26.4796,-18.7207,36.7976,-18.0611,32.6702,-12.4249,31.6117,-6.44,19.7468,-11.9814,-1.9038,-24.8068,-4.8709,-25.4052,-0.5224,-26.8665,1.1382,-32.7357,-3.4346,-31.9278,-3.9221,-35.5279,-7.2622,-34.5572,-8.4459,-38.2963,-8.6621,-41.8203,-0.7841,-39.9899,4.0236,-35.6281,11.7553,-39.5464,18.0859,-40.0817,15.0368,-34.4299,15.0109,-28.6694")
+--shark_attack=split("19.728376,-19.11977,30.756013,-20.049671,24.669945,-14.094205,23.824988,-9.316868,14.353986,-13.740212,-2.928298,-23.977959,-5.296749,-24.45562,-1.825649,-25.622015,-0.500047,-30.307026,-4.150279,-29.662141,-4.539355,-32.53587,-7.205545,-31.761019,-8.150484,-34.745707,-8.323043,-37.558755,-2.034523,-36.097637,1.803167,-32.615881,7.974872,-35.743646,13.028208,-36.170908,10.594297,-31.659434,10.573627,-27.061166")
+shark_attack=split("22.202957,-15.366927,15.483154,-16.376375,-2.408022,-26.97482,-4.859918,-27.46931,-1.266524,-28.676799,0.105782,-33.526873,-3.673056,-32.859268,-4.07584,-35.834244,-6.835965,-35.032094,-7.814196,-38.121939,-6.022431,-45.549607,-2.263571,-40.961909,4.826343,-35.168719,10.148187,-37.093079,15.379563,-37.535395,12.8599,-32.864972,12.8385,-28.022597")
 
 
 --28x30
@@ -1561,7 +1633,7 @@ eggpts=split("1.51,2.5,2.51,1.5,2.51,-1.5,0.51,-3.5,-1.49,-1.5,-1.49,1.5,-0.49,2
 
 crownpts=split("-4,-4,-2,-2,0,-4,2,-2,4,-4,4,2,-4,2,-4,-4")
 -->8
---painto-8 lite
+----painto-8 lite
 do
 local old_draw=_draw
 poke(0x5f2d,1)
@@ -1845,7 +1917,7 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010c00000d0700d0700d0700d0700d0700d0700e0700e070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
