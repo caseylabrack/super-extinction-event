@@ -7,9 +7,26 @@ __lua__
 --todo:
 	--scoring
 		--separate high score for rex
+		--diamond score
 	--big shark splash effect
 		
 --😐
+	--2player mode: mammals
+	---enemy is a roving triceratops
+	---going from fern to fern
+	---mammals are omnivores
+	---can collide
+	---each has different food?
+	---each needs the other to get
+	---their food before both refresh?
+	--2player mode: versus
+	---oviraptor from the original
+	---instantly pick up eggs
+	---eggs are color coded
+	---can push each other (into rex)
+	--big text that says "blam"
+	--booooom hscroll
+	-- at gameover
 	--graph of score?
 	--score screen also show deaths
 	--main screen:
@@ -73,7 +90,7 @@ __lua__
 
 log=""
 
-defaultchallenge=2
+defaultchallenge=1
 --challenges:
 --1: brontosaurus
 --2: oviraptor

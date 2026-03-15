@@ -26,7 +26,7 @@ function _update()
 		if btnp(⬆️) then dino=mid(1,dino-1,#scenarios) end		
 		if btnp(⬇️) then dino=mid(1,dino+1,#scenarios) end
 	else
-		if btnp(⬆️) then mode=mid(1,mode-1,2) end		
+		if btnp(⬆️) then mode=mid(1,mode-1,2) end
 		if btnp(⬇️) then mode=mid(1,mode+1,2) end
 		if not ru[dino] then mode=1 end
 	end
@@ -38,9 +38,10 @@ function _update()
 	if btnp(❎) then
 		state+=1
 		if state==3 then
-			load("super-extinction-event",
-			"back to menu",
-			dino..","..mode)			
+			 cls() stop(dino.." "..mode)
+--			load("super-extinction-event",
+--			"back to menu",
+--			dino..","..mode)
 		end
 	end
 end
@@ -96,29 +97,29 @@ scenarios={
 --"lizard thing (todo)",
 }
 dinfo={[[
-class:
+food:
 herbivore
 
 dislikes:
 t-rex!
 
 scoring:
-based on streak
-(reset on death)
+streak gets 
+reset on death
 ]],
 [[
-class:
+food:
 ovivore (eggs)
 
 dislikes:
 obstacles
 
 scoring:
-based on streak
-(reset on miss)
+streak gets
+reset on miss
 ]],
 [[
-class:
+food:
 piscovore (fish)
 
 dislikes:

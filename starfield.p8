@@ -1,12 +1,17 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
---todo
+--todo:
+--when text rests, it blows apart
+---continents?
+--add a little distortion to txt
+--juicier eating sound
 ---more trees
 ---lods?
 
 stars={}
-segs={}
+txts={}
+--segs={}
 ⧗=0  --master timer
 pts={} --pteros
 ts={} --trees
@@ -20,8 +25,16 @@ ppat=0 -- previous music pattern
 pnote=0  -- previous note
 mpct=0
 
+fadeouttext=false
+hitstart=false
+hitstart⧗=120
+hitstarttxt={}
+
+#include font-util.p8:3
 #include super-extinction-event.p8:1
 #include super-extinction-event.p8:4
+
+fonts=font_parser(fontdata)
 
 --crop vector data
 function cvd (xs,c)
@@ -90,7 +103,7 @@ end
 function _update()
 
 	⧗+=1
-			
+							
 	if state=="prestart"	then
 		sfx(32,3)
 		state="start"
@@ -170,20 +183,41 @@ function _update()
 	e.frames={cvd(earth2f,72/e.scale)}
 
 	if pat==4 and ppat~=4 then
-		addword("extinction",-63,-6)		
+		add(txts,cvstring("extinction",0,-6,8,3))
+--		addword("extinction",-63,-6)		
+--		add(segs,cvstring("extinction",64,-6,8,3)		
 	end
 
 	if pat==5 then
 		if contains({1,},note) and
 			not contains({1,5,9},pnote) then
-			addword("super",-30,-26)
+--			addword("super",-30,-26)
+					add(txts,cvstring("super",0,-32,8,3))
 		end
 		
 		if contains({16},note) and
 			not contains({16,20,24},pnote) then
-			addword("event",-30,16)
+--			addword("event",-30,16)
+				add(txts,cvstring("event",0,20,8,3))
 		end
-	end			
+	end	
+	
+	if #txts>0 and not stat(57) then
+		if not hitstart then
+			hitstarttxt=cvstring("press ❎",0,48,7,1)
+			hitstart=true
+		end
+	end
+	
+	if hitstart then
+		hitstart⧗-=1
+	end
+	
+	if hitstart then
+		if btnp(❎) then
+			fadeouttext=true			
+		end
+	end
 		
 	for star in all(stars) do
 		star.pz=star.z
@@ -196,12 +230,14 @@ function _update()
 		end
 	end
 	
-	for seg in all(segs) do
-		for p in all(seg) do
-			if p.z<128 then p.z=mid(p.z,p.z+4,128) end
-		end
+	for text in all(txts) do
+		for i,seg in ipairs(text) do
+				for p in all(seg) do
+					if p.z<128 then p.z=mid(p.z,p.z+4,128) end
+				end	
+		end	
 	end
-	
+		
 	ppat=stat(54)
 	pnote=stat(50)
 end
@@ -233,19 +269,44 @@ function _draw()
 		render_ent(pt)	
 	end
 	
-	color(8)
-	for seg in all(segs) do
-		line()
-		for pair in all(seg) do
-			local x,y=zoom(pair)
-			line(x,y)
+--	camera()
+
+	if hitstart⧗<0 then
+		for i,seg in ipairs(hitstarttxt) do
+			color(hitstarttxt.clr or 14)
+			line()
+			for pair in all(seg) do
+				if pair.⧗<1 then line(pair.x,pair.y) end
+				if fadeouttext then
+					if pair.⧗<1 then
+						pair.⧗+=.05
+					end				
+				end
+			end	
+		end
+	end
+
+
+	for text in all(txts) do
+		color(text.clr or 14)
+		for i,seg in ipairs(text) do
+				line()
+				for pair in all(seg) do
+					local x,y=zoom(pair)
+					if pair.⧗<1 then line(x,y) end
+					if fadeouttext then
+						if pair.⧗<1 then
+							pair.⧗+=.05
+						end				
+					end
+				end	
 		end	
 	end
-	
-pal(split("129,130,14,132,133,134,135,136,137,138,139,140,141,142,143,0"),1)
 
 camera()
-print("mpct: "..mpct,0,10,12)
+pal(split("129,130,14,132,133,134,135,136,137,138,139,140,141,142,143,0"),1)
+
+--print("mpct: "..mpct,0,10,12)
 
 end
 
@@ -259,134 +320,59 @@ function zoom (e,depth)
 	return x1,y1
 end
 
-function addword (str,xoff,yoff)
-	local word=str
-	
-	for i=1,#word do
-		local letter=fonts[word[i]]
-		local seg={}
+--function addword (word,xoff,yoff)
+--	
+--	for i=1,#word do
+--		local letter=fonts[word[i]]
+--		local seg={}
+--		local j=1
+--
+--		while j<=#letter do
+--			local h=sub(letter,j,j)
+--			local h2=sub(letter,j+1,j+1)
+--			if h=="p" then
+--				add(segs,seg)
+--				seg={}
+--				j+=1
+--			else 
+--				add(seg,{
+--					x=tonum("0x"..h)+xoff,
+--					y=12-tonum("0x"..h2)+yoff,
+--					z=0
+--				})
+--				j+=2
+--			end			
+--		end
+--		add(segs,seg)
+--
+--		xoff=xoff+13
+--	end
+--end
 
-		for pair in all(letter) do			
-			if pair==font_up then
-				add(segs,seg)
-				seg={}
-			else
-				add(seg,{
-					x=pair[1]+xoff,
-					y=12-pair[2]+yoff,
-					z=0
-				})
-			end
-		end
-		add(segs,seg)
-		
-		xoff=xoff+13
-	end
-end
--->8
---font data
--- https://trmm.net/asteroids_font
--- "draw" command
-font_up={}
-fonts={
-	['0'] = { {0,0}, {8,0}, {8,12}, {0,12}, {0,0}, {8,12}},
-	['1'] = { {4,0}, {4,12}, {3,10}},
-	['2'] = { {0,12}, {8,12}, {8,7}, {0,5}, {0,0}, {8,0}},
-	['3'] = { {0,12}, {8,12}, {8,0}, {0,0}, font_up, {0,6}, {8,6}},
-	['4'] = { {0,12}, {0,6}, {8,6}, font_up, {8,12}, {8,0}},
-	['5'] = { {0,0}, {8,0}, {8,6}, {0,7}, {0,12}, {8,12}},
-	['6'] = { {0,12}, {0,0}, {8,0}, {8,5}, {0,7}},
-	['7'] = { {0,12}, {8,12}, {8,6}, {4,0}},
-	['8'] = { {0,0}, {8,0}, {8,12}, {0,12}, {0,0}, font_up, {0,6}, {8,6}, },
-	['9'] = { {8,0}, {8,12}, {0,12}, {0,7}, {8,5}},
-	[' '] = { },
-	['.'] = { {3,0}, {4,0}},
-	[','] = { {2,0}, {4,2}},
-	['-'] = { {2,6}, {6,6}},
-	['+'] = { {1,6}, {7,6}, font_up, {4,9}, {4,3}},
-	['!'] = { {4,0}, {3,2}, {5,2}, {4,0}, font_up, {4,4}, {4,12}},
-	['#'] = { {0,4}, {8,4}, {6,2}, {6,10}, {8,8}, {0,8}, {2,10}, {2,2} },
-	['^'] = { {2,6}, {4,12}, {6,6}},
-	['='] = { {1,4}, {7,4}, font_up, {1,8}, {7,8}},
-	['*'] = { {0,0}, {4,12}, {8,0}, {0,8}, {8,8}, {0,0}},
-	['_'] = { {0,0}, {8,0}},
-	['/'] = { {0,0}, {8,12}},
-	['\\'] = { {0,12}, {8,0}},
-	['@'] = { {8,4}, {4,0}, {0,4}, {0,8}, {4,12}, {8,8}, {4,4}, {3,6} },
-	['$'] = { {6,2}, {2,6}, {6,10}, font_up, {4,12}, {4,0}},
-	['&'] = { {8,0}, {4,12}, {8,8}, {0,4}, {4,0}, {8,4}},
-	['['] = { {6,0}, {2,0}, {2,12}, {6,12}},
-	[']'] = { {2,0}, {6,0}, {6,12}, {2,12}},
-	['('] = { {6,0}, {2,4}, {2,8}, {6,12}},
-	[')'] = { {2,0}, {6,4}, {6,8}, {2,12}},
-	['{'] = { {6,0}, {4,2}, {4,10}, {6,12}, font_up, {2,6}, {4,6}},
-	['}'] = { {4,0}, {6,2}, {6,10}, {4,12}, font_up, {6,6}, {8,6}},
-	['%'] = { {0,0}, {8,12}, font_up, {2,10}, {2,8}, font_up, {6,4}, {6,2} },
-	['<'] = { {6,0}, {2,6}, {6,12}},
-	['>'] = { {2,0}, {6,6}, {2,12}},
-	['|'] = { {4,0}, {4,5}, font_up, {4,6}, {4,12}},
-	[':'] = { {4,9}, {4,7}, font_up, {4,5}, {4,3}},
-	[';'] = { {4,9}, {4,7}, font_up, {4,5}, {1,2}},
-	['"'] = { {2,10}, {2,6}, font_up, {6,10}, {6,6}},
-	['\''] = { {2,6}, {6,10}},
-	['`'] = { {2,10}, {6,6}},
-	['~'] = { {0,4}, {2,8}, {6,4}, {8,8}},
-	['?'] = { {0,8}, {4,12}, {8,8}, {4,4}, font_up, {4,1}, {4,0}},
-	['a'] = { {0,0}, {0,8}, {4,12}, {8,8}, {8,0}, font_up, {0,4}, {8,4} },
-	['b'] = { {0,0}, {0,12}, {4,12}, {8,10}, {4,6}, {8,2}, {4,0}, {0,0} },
-	['c'] = { {8,0}, {0,0}, {0,12}, {8,12}},
-	['d'] = { {0,0}, {0,12}, {4,12}, {8,8}, {8,4}, {4,0}, {0,0}},
-	['e'] = { {8,0}, {0,0}, {0,12}, {8,12}, font_up, {0,6}, {6,6}},
-	['f'] = { {0,0}, {0,12}, {8,12}, font_up, {0,6}, {6,6}},
-	['g'] = { {6,6}, {8,4}, {8,0}, {0,0}, {0,12}, {8,12}},
-	['h'] = { {0,0}, {0,12}, font_up, {0,6}, {8,6}, font_up, {8,12}, {8,0} },
-	['i'] = { {0,0}, {8,0}, font_up, {4,0}, {4,12}, font_up, {0,12}, {8,12} },
-	['j'] = { {0,4}, {4,0}, {8,0}, {8,12}},
-	['k'] = { {0,0}, {0,12}, font_up, {8,12}, {0,6}, {6,0}},
-	['l'] = { {8,0}, {0,0}, {0,12}},
-	['m'] = { {0,0}, {0,12}, {4,8}, {8,12}, {8,0}},
-	['n'] = { {0,0}, {0,12}, {8,0}, {8,12}},
-	['o'] = { {0,0}, {0,12}, {8,12}, {8,0}, {0,0}},
-	['p'] = { {0,0}, {0,12}, {8,12}, {8,6}, {0,5}},
-	['q'] = { {0,0}, {0,12}, {8,12}, {8,4}, {0,0}, font_up, {4,4}, {8,0} },
-	['r'] = { {0,0}, {0,12}, {8,12}, {8,6}, {0,5}, font_up, {4,5}, {8,0} },
-	['s'] = { {0,2}, {2,0}, {8,0}, {8,5}, {0,7}, {0,12}, {6,12}, {8,10} },
-	['t'] = { {0,12}, {8,12}, font_up, {4,12}, {4,0}},
-	['u'] = { {0,12}, {0,2}, {4,0}, {8,2}, {8,12}},
-	['v'] = { {0,12}, {4,0}, {8,12}},
-	['w'] = { {0,12}, {2,0}, {4,4}, {6,0}, {8,12}},
-	['x'] = { {0,0}, {8,12}, font_up, {0,12}, {8,0}},
-	['y'] = { {0,12}, {4,6}, {8,12}, font_up, {4,6}, {4,0}},
-	['z'] = { {0,12}, {8,12}, {0,0}, {8,0}, font_up, {2,6}, {6,6}},
-}
-local font_scale=6
-function draw_char(c,x,y,scale)
-	scale=scale or font_scale
-	local font=fonts[c]
-	if(not font) assert("unsupported char:"..c)
-	local x0,y0
-	local moveto=true
-	for i=1,#font do
-		local seg=font[i]
-		if seg==font_up then
-			moveto=true
-			goto continue
-		end
-		if moveto==true then
-			x0,y0=seg[1],12-seg[2]
-			moveto=false
-		else
-			local x1,y1=seg[1],12-seg[2]
-			line(
-				x+scale*x0/12,
-				y+scale*y0/12,
-				x+scale*x1/12,
-				y+scale*y1/12)
-			x0,y0=x1,y1
-		end
-		::continue::
-	end
-end
+--function addword (str,xoff,yoff)
+--	local word=str
+--	
+--	for i=1,#word do
+--		local letter=fonts[word[i]]
+--		local seg={}
+--
+--		for pair in all(letter) do			
+--			if pair==font_up then
+--				add(segs,seg)
+--				seg={}
+--			else
+--				add(seg,{
+--					x=pair[1]+xoff,
+--					y=12-pair[2]+yoff,
+--					z=0
+--				})
+--			end
+--		end
+--		add(segs,seg)
+--		
+--		xoff=xoff+13
+--	end
+--end
 -->8
 --sprites
 bronto_idle=split("-4.3165,-4.0968,-8.3866,-3.0792,-2.2815,-10.2019,1.7886,-10.2019,3.8236,-20.377,7.8937,-20.377,7.8937,-17.3245,5.8587,-17.3245,4.8412,-9.1843,4.3324,-1.0442,2.8061,-1.2986,1.7886,-4.0968,-1.2639,-4.0968,-1.7727,-1.0442,-3.299,-0.7898")

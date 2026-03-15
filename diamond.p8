@@ -1,15 +1,11 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
---maybe wobble them
-
 --https://musescore.com/classicman/scores/115967
 
-#include ../font-util.p8:3
-#include ../super-extinction-event.p8:1
-#include ../super-extinction-event.p8:3
-
---fontdata=[[|!40325240p444c|"2a26p6a66|#0484626a88082a22|$62266ap4c40|%008cp2a28p6462|&804c88044084|'266a|h000cp0686p8c80|i0080p404cp0c8c|j0440808c|k000cp8c0660|l80000c|m000c488c80|n000c808c|o000c8c8000|p000c8c8605|q000c8c8400p4480|r000c8c8605p4580|s02208085070c6c8a|t0c8cp4c40|u0c0240828c|v0c408c|w0c2044608c|x008cp0c80|y0c468cp4640|z0c8c0080p2666|{60424a6cp2646|}40626a4cp6686|~04286488|[60202c6c|\0c80|]20606c2c|^264c66|_0080|`2a66|a00084c8880p0484|b000c4c8a46824000|c80000c8c|d000c4c88844000|e80000c8cp0666|f000c8cp0666|g668480000c8c|(6024286c|)2064682c|*004c80088800|+1676p4943|,2042|-2666|.3040|/008c|000808c0c008c|1404c3a|20c8c87050080|30c8c8000p0686|40c0686p8c80|5008086070c8c|60c00808507|70c8c8640|800808c0c00p0686|9808c0c0785|:4947p4543|;4947p4512|<60266c|=1474p1878|>20662c|?084c8844p4140|@844004084c884436|]]
+#include font-util.p8:3
+#include super-extinction-event.p8:1
+#include super-extinction-event.p8:3
 
 angle=.75
 ax=.5
@@ -117,10 +113,8 @@ function _update()
 		if ⧗==45 then add(txts,cvstring("crushed bit of carbon",64,4,8)) end
 	end
 	if state=="diamond" then
-		if ⧗==120 then add(txts,cvstring("a diamond",64,114,8,2)) end	
-	end
-
-		
+		if ⧗==120 then add(txts,cvstring("a diamond",64,114,8,3)) end	
+	end		
 end
 
 function _draw()
