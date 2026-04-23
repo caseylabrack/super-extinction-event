@@ -12,6 +12,7 @@ __lua__
 		
 --😐
 	--2player mode: mammals
+	---have to eat the grub? frozen
 	---enemy is a roving triceratops
 	---going from fern to fern
 	---mammals are omnivores
@@ -19,24 +20,13 @@ __lua__
 	---each has different food?
 	---each needs the other to get
 	---their food before both refresh?
-	--2player mode: versus
-	---oviraptor from the original
-	---instantly pick up eggs
-	---eggs are color coded
-	---can push each other (into rex)
+	---food is worms, mammals are
+	---like groundhogs
 	--big text that says "blam"
 	--booooom hscroll
 	-- at gameover
 	--graph of score?
 	--score screen also show deaths
-	--main screen:
-		--dinosaur name,eating type
-			--oviraptor: ovivore
-			--bronto: herbivore
-			--lizard: scavenger
-			--spinosaurus: piscovore
-		--scoring style (fibonacci, total)
-		--animation of eating
 	--mammal(? lizard?) mode:
 		--ptero drops eggs which roll
 		--eccentricly around and stop
@@ -55,17 +45,10 @@ __lua__
 		--like squash and stretch?
 	--chipper sound on score needed
 	--turn into a hypercube on win?
-	--score animation is dino
-		--running around circumference
-		--where 1 turn is hell world
-		--and a marker for previous best
-		--and crown at 0 degrees?
-		--replay all score callouts
 	--pickup text: "neat","rad","wicked"
 		--instead of numerical score
 		--including end of game total
 		--color the text
-	--can jump (volcano)
 	--time scale?
 	--slow time?
 	--ptero can swoop up over obstacles
@@ -73,28 +56,31 @@ __lua__
 		--ptero's idle is perched
 	--stars
 	--add occasion eggs to plant games and vice versa
- --respawn animation: egg hatch
-	--gameover animation
-		--every game ends with the big one?
-		--hit and fly off into space?
-		--turn into bird?
-		--earth shatters,exposing score screen
-		--trophy flies from foreground (scaled up), down and crashes through last troph (silver->gold)
-	--hitstop maybe
-	--leaves are round, scales down
  --bronto stands to eat animation?
-	--"super extinction challenge"?
-	--'nautilus' is pretty nice for this
 
 #include main.p8:2
 
 log=""
 
-defaultchallenge=1
+
+bronto,raptor,spino,mammal=1,2,3,4
+
+--defaultchallenge=bronto
+defaultchallenge=mammal
 --challenges:
 --1: brontosaurus
 --2: oviraptor
 --3: spinosaurus
+--4: mammals
+
+--cartdata:
+--0:
+--1:bronto score
+--2:ovi score
+--3:spino score
+--11:bronto rexscore
+--12:ovi rexscore
+--13:spino rexscore
 
 --debug
 sar=.05 --spino angle range
@@ -118,22 +104,17 @@ function reinit()
 	g⧗=60 --game time
 	score=0
 	oldhs=0 --old high score
-	mult=1
-	mult2=0
 	streak=0
-	lmult2=0
 	shake=0
 	gameover=false
 	
-	bronto,raptor,spino=1,2,3
-	stage=0
-	stara=0
 	trexs={}
 	trees={}
 	sks={} --sharks
 	vs={} -- volcanos
 	ss={} -- explosions
 	rs={} -- roids
+	gbs={} --grubs
 	fs={} -- fishes
 	fs⧗=0 -- fish timer
 	parts={} -- particles
@@ -145,39 +126,54 @@ function reinit()
 	isrex=false
 	scores={}
 	
-	--player
-	p={x=64,y=29,r=0,state="idle",enabled=true,dx=0,dy=0,
+	ps={} --players
+	pdeads={}
+	
+	e={x=0,y=0,a=0,r=0,s=.01,d=1,c=130,
+	enabled=true,
+	fr=1,frames={earthconts}}
+	
+	for i=1,2 do
+--		local p=new_ent()
+--		p.state="idle"
+--		p.dx,p.dy=0,0
+--		p.a=.25,p.da=0,p.m=30,p.dm=0
+		add(ps,{x=64,y=29,r=0,state="idle",enabled=true,dx=0,dy=0,
 		--angle, delta angle, mag, delta mag, grounded
 	 a=.25,da=0,m=30,dm=0,
 		--target mag, grounded
 	 tm=30,gr=true,
 		--speed, facing direction,
+--	 s=.004,d=1,c=15,
 	 s=.004,d=1,c=15,
 	 --last position
 	 lpx,lpy=0,0,
 	 rcr=8,--run cycle rate
 	 --frame index, all frames
-	 fr=1,frames={bronto_idle,bronto_run1,bronto_run2,}
-	}
+	 fr=1,frames={bronto_idle,bronto_run1,bronto_run2,},
+	 id=i,
+	})
+	end
 	
-	pdead={x=0,y=-p.tm,r=0,c=p.c,⧗=0,enabled=false,fr=1,frames={}}
+	for i=1,2 do
+		add(pdeads,{x=0,y=ps[i].tm*(i==1 and -1 or 1),r=(i==1 and 0 or .5),c=ps[i].c,⧗=0,enabled=false,fr=1,frames={}})
+	end
 	
-	e={x=0,y=0,a=0,r=0,s=.01,d=1,c=130,
-		enabled=true,
-		fr=1,frames={earthconts}}
-
-	pdead.frames[1]=p.frames[1]
-
-	p.x=0
-	p.y=-30
-	p.parent=e
+	ps[1].x=0
+	ps[2].x=0
+	ps[1].y=-30
+	ps[2].y=30
+	ps[1].parent=e
+	ps[2].parent=e
 	
-	cr={x=0,y=0,r=0,enabled=false,
+	crs={} --crowns
+	for i=1,2 do
+		local crown={x=0,y=0,r=0,enabled=false,
 		fr=1,frames={crownpts},c=7}
---	cr.parent=p
-	addchild(p,cr)
-	cr.y=-24	cr.x=7
-	
+		addchild(ps[i],crown)
+		crown.y=-24	crown.x=7
+		add(crs,crown)
+	end
 	
 	params=split(stat"6")
 	chal,mode=params[1],params[2]
@@ -194,9 +190,21 @@ function reinit()
 		lethalroids=true		
 	end
 	
+	if contains({4},chal) then
+		ps[1].frames={mams_idle,mams_run1,mams_run2}	
+		ps[2].frames={mams_idle,mams_run1,mams_run2}			
+		ps[1].rcr=4
+		ps[2].rcr=4
+		ps[1].c=7
+		ps[2].c=15
+		spawntrex()
+		spawngrubs()
+	end
+	
 	if contains({1},chal) then
 		spawntrex()
-		spawntree()	
+		spawntree()
+		ps[2].enabled=false
 	end
 		
 	if contains({2},chal) then
@@ -219,6 +227,9 @@ function reinit()
 		cr.x,cr.y=1,-4			
 	end
 	
+	pdeads[1].frames[1]=ps[1].frames[1]
+	pdeads[2].frames[1]=ps[2].frames[1]
+	
 	music(0)
 end
 
@@ -233,8 +244,6 @@ function _update()
 
 	⧗+=1
 	e.x,e.y=0,0
-
-	stara+=.001
 			
 	--big one approaches
 	local pct=1-g⧗/1
@@ -272,9 +281,11 @@ function _update()
 		end
 		if chal==spino then score=#p.cf end
 
-		pdead.enabled=false
-
-		local todestroy=tconcat({bo,e,p,cr},rs,vs,trexs,trees,ebirds,ss,eggs,sks,fs,p.cf)
+		for pdead in all(pdeads) do
+			pdead.enabled=false
+		end
+		
+		local todestroy=tconcat({bo,e,cr},ps,rs,vs,trexs,trees,ebirds,ss,eggs,gbs,sks,fs,ps[1].cf)
 
 		for d in all(todestroy) do		
 			if not d.enabled then goto destroycontinue end
@@ -391,7 +402,7 @@ function _update()
 			
 			if s.⧗<26 and diff<.06 and diff>0 and p.enabled then
 				drop_fish()
-				playerdied()
+				playerdied(p.id)
 			end
 			
 			if s.⧗==90 then
@@ -400,11 +411,8 @@ function _update()
 		end
  end
  
-
 --	function fish()
-		
-	--spawn fish
-	if chal==spino then fs⧗+=1 end
+ if chal==spino then fs⧗+=1 end
 	if fs⧗>30 then
 		fs⧗=-30+rnd()*-100
 		spawnfish()
@@ -573,10 +581,87 @@ function _update()
 		end
 	end
 	
+	--function grubs
+	for gb in all(gbs) do
+		gb.⧗+=1
+		if gb.state=="rising" then
+			gb.fr=2
+			local pct=gb.⧗/15
+			if pct>1 then
+				gb.state="crawling"
+				gb.d=rnd()>.5 and 1 or -1
+			else
+				local lo,hi=23,29
+				gb.m=lo+(hi-lo)*pct
+			end
+		end
+		if gb.state=="crawling" then
+			gb.fr=flr(⧗/10)%2+1
+			gb.da=gb.d*.001
+		end
+		
+		--getting eaten
+		local wastouched=false
+		if gb.state=="crawling" then
+			for p in all(ps) do
+				if p.enabled then
+					local pa=atan2(p.x,p.y)
+					local diff=sad(pa,gb.a)
+					if abs(diff)<.05 then
+						wastouched=wastouched or true
+					end
+				end
+			end
+		end
+		if wastouched then
+			gb.hp-=1 gb.da=0
+			--particles
+			lp={}
+			lp.x,lp.y=gpos(gb)--gpos(p)
+			lp.⧗=10 lp.c=11 lp.type="point"			
+			addchild(e,lp)
+			lp.dx=cos(gb.a+rndr(-.1,.1))*2
+			lp.dy=sin(gb.a+rndr(-.1,.1))*2
+			lp.f=.9
+			add(parts,lp)	
+		end
+		if gb.hp<0 then
+			gb.state="cooling"
+			gb.m=23
+			gb.⧗=0
+			gb.hp=gb.hpm
+			streak+=1
+			add(scores,streak)
+
+		 --points particle
+			tp={}
+			tp.x,tp.y=gpos(gb)
+			tp.⧗=30 tp.c=gb.c
+			tp.x+=cos(gb.a)*20
+			tp.y+=sin(gb.a)*20
+			tp.dx,tp.dy=cos(a)*2,sin(a)*2
+			tp.f=.8
+			tp.type="text"
+			tp.label="+"..streak
+			add(parts,tp)
+		end
+		if gb.state=="cooling" then
+			if gb.⧗>30 then
+				gb.state="rising"
+				gb.⧗=0
+			end
+		end		
+		
+		gb.a+=gb.da
+		gb.r=gb.a+.75
+		polartocart(gb)
+	end
+
 	--function roids
-	--fire roids
 --	if ⧗%14==0 then
 	if ⧗%10==0 then
+--	if ⧗%2==0 then
+--	if false then
 		local roid={}
 		local a=rnd()
 		roid.x,roid.y=cos(a)*70,sin(a)*70
@@ -613,24 +698,27 @@ function _update()
 			
 			--knockback/hit
 			sa=atan2(s.x,s.y)
-			pa=atan2(p.x,p.y)
-			
-			diff=sad(sa,pa)
-			if abs(diff)<.1 then
-				local pct=1-abs(diff)/.1
---				local pct=sgn(diff)-(diff/.1)
-				pct=pct*pct
-				p.da+=pct*.075*sgn(diff)
-				p.gr=false
-				p.dm+=6*pct				
-			end
-			
-			if abs(diff)<.06 then
-				drop_fish()
-			end
-			
-			if lethalroids and abs(diff)<.04 and p.enabled then
-				playerdied()
+			for p in all(ps) do
+				pa=atan2(p.x,p.y)
+				
+				diff=sad(sa,pa)
+				if abs(diff)<.1 and p.gr then
+					local pct=1-abs(diff)/.1
+	--				local pct=sgn(diff)-(diff/.1)
+					pct=pct*pct
+					p.da+=pct*.075*sgn(diff)
+					p.gr=false
+--					p.dm+=6*pct				
+					p.dm=mid(0,p.dm+6*pct,6)
+				end
+				
+				if abs(diff)<.06 then
+					drop_fish()
+				end
+				
+				if lethalroids and abs(diff)<.04 and p.enabled then
+					playerdied(p.id)
+				end
 			end
 		end
 	end
@@ -647,282 +735,301 @@ function _update()
 	end	
 
 	--	function player() end	
-	--player
-	
-	--record position last frame
-	p.lpx,p.lpy=gpos(p)
-	
-	if pdead.enabled then
-		pdead.⧗+=1
+	for pdead in all(pdeads) do
+		if pdead.enabled then
+			pdead.⧗+=1
+		end
 	end
 	
-	if p.enabled then
-		p.state="idle"
-		if btn(⬅️) then
-			if p.gr then p.da+=p.s p.d=-1 end
-			p.state="run" 
-		end
-		if btn(➡️) then 
-			if p.gr then p.da-=p.s p.d=1 end
-	  p.state="run" 
-		end
-		
-		if p.state=="idle" then
-			p.fr=1
-		end
-		if p.state=="run" then
---			if ⧗%8<4 then --alternate
---			if ⧗%4<2 then --alternate
-			if ⧗%p.rcr<p.rcr/2 then --alternate
-				p.fr=2
-			else
-				p.fr=3
-			end
-		end
+	for p in all(ps) do
+	
+		p.lpx,p.lpy=gpos(p)	--record position last frame
 
-		if p.dino=="spino" then
-			p.d=1
-			--run state 2bit bitfield
-			--0b01 running or still
-			--0b10 mouth open or closed
-			local rst=0
+		if p.enabled then
+			p.state="idle"
+			if btn(⬅️,p.id-1) then
+				if p.gr then p.da+=p.s p.d=-1 end
+				p.state="run" 
+			end
+			if btn(➡️,p.id-1) then 
+				if p.gr then p.da-=p.s p.d=1 end
+		  p.state="run" 
+			end
 			
-			if p.state=="run" then rst+=0b01 end
---			pa=atan2(p.x,p.y)
-			pa=atan2(gpos(p))
-			for fish in all(fs) do	
-				if fish.state=="jump" then
---					fa=atan2(fish.x,fish.y)
---					local fposx,fposy=gpos(fish)
-					fa=atan2(fish.x,fish.y)
-					diff=sad(pa,fa)
-					if abs(diff)<.25 then rst+=0b10 break end
+			if p.state=="idle" then
+				p.fr=1
+			end
+			if p.state=="run" then
+				if ⧗%p.rcr<p.rcr/2 then --alternate
+					p.fr=2
+				else
+					p.fr=3
 				end
 			end
-			--run cycle frame
-			local rframe=0
-			if p.da>0 then 
-				if ⧗%8<4 then
-					rframe=0
-				else 
-					rframe=2
-				end
-			else 
-				if ⧗%4<2 then
-					rframe=0
-				else 
-					rframe=2
+			if chal==mammal then
+				if p.gr then
+					if p.state=="run" then
+						local a=atan2(p.x,p.y)
+						p.m=p.tm+sin(a*10)
+					else
+						p.m=p.tm
+					end		
 				end
 			end
-			--closed,still
-			if rst==0 then p.fr=1 p.jaw.r=0 end
-			--closed,run
-			if rst==1 then p.fr=3+rframe	p.jaw.r=0 end
-			--open,still 
-			if rst==2 then p.fr=2 p.jaw.r=.15 end
-			--open,run
-			if rst==3 then p.fr=4+rframe p.jaw.r=.15 end			
-
-			--catch fish
-			for fish in all(fs) do
-				local fa=atan2(gpos(fish))
-				local pa=atan2(gpos(p))
-				if fish.state=="jump" and
-					fish.cable and
-					distot(fish)<sdr and
-				 abs(sad(fa,pa))<sar then
-				 	del(fs,fish)
-				 	local f=new_ent()
-				 	f.x,f.y,f.r,f.frames,f.scale=
- 				 	p.x,p.y,rnd(),{fish_idle},.5
-						f.c=3
-						addchild(p.jaw,f)
-						f.x=4+8*rnd()
-						f.y=0+rnd()*3
-				 	add(p.cf,f)
-						add(scores,1)
-				 	
-				 	for particle in all(parts) do
-				 		if particle.id=="fish" then
-				 			del(parts,particle)
+			
+			if p.dino=="spino" then
+				p.d=1
+				--run state 2bit bitfield
+				--0b01 running or still
+				--0b10 mouth open or closed
+				local rst=0
+				
+				if p.state=="run" then rst+=0b01 end
+	--			pa=atan2(p.x,p.y)
+				pa=atan2(gpos(p))
+				for fish in all(fs) do	
+					if fish.state=="jump" then
+						fa=atan2(fish.x,fish.y)
+						diff=sad(pa,fa)
+						if abs(diff)<.25 then rst+=0b10 break end
+					end
+				end
+				--run cycle frame
+				local rframe=0
+				if p.da>0 then 
+					if ⧗%8<4 then
+						rframe=0
+					else 
+						rframe=2
+					end
+				else
+					if ⧗%4<2 then
+						rframe=0
+					else 
+						rframe=2
+					end
+				end
+				--closed,still
+				if rst==0 then p.fr=1 p.jaw.r=0 end
+				--closed,run
+				if rst==1 then p.fr=3+rframe	p.jaw.r=0 end
+				--open,still 
+				if rst==2 then p.fr=2 p.jaw.r=.15 end
+				--open,run
+				if rst==3 then p.fr=4+rframe p.jaw.r=.15 end			
+	
+				--catch fish
+				for fish in all(fs) do
+					local fa=atan2(gpos(fish))
+					local pa=atan2(gpos(p))
+					if fish.state=="jump" and
+						fish.cable and
+						distot(fish)<sdr and
+					 abs(sad(fa,pa))<sar then
+					 	del(fs,fish)
+					 	local f=new_ent()
+					 	f.x,f.y,f.r,f.frames,f.scale=
+	 				 	p.x,p.y,rnd(),{fish_idle},.5
+							f.c=3
+							addchild(p.jaw,f)
+							f.x=4+8*rnd()
+							f.y=0+rnd()*3
+					 	add(p.cf,f)
+							add(scores,1)
+					 	
+					 	for particle in all(parts) do
+					 		if particle.id=="fish" then
+					 			del(parts,particle)
+								end
 							end
-						end
-				 	
-				 	--score popup
+					 	
+					 	--score popup
+							tp={}
+							tp.x,tp.y=gpos(fish)
+							tp.⧗=30 tp.c=10
+							local a=atan2(tp.x,tp.y)
+							tp.dx,tp.dy=cos(a)*2,sin(a)*2
+							tp.f=.8
+							tp.type="text"
+							tp.id="fish"
+							tp.label=""..#p.cf
+							add(parts,tp)
+	     end								
+				end			
+			end--end spino
+					
+			--rising and falling
+			if not p.gr then
+				p.dm-=1 --gravity
+				p.m+=p.dm
+				if p.m<p.tm then
+					p.gr=true
+					p.m=p.tm
+					p.dm=0
+				end
+			end
+			
+			local a=atan2(p.x,p.y)
+			
+			--colliding with volcano?
+			for v in all(vs) do
+				local va=atan2(v.x,v.y)
+				local pa=atan2(p.x,p.y)
+				local vdiff=sad(va,pa)
+		
+				--player moving toward volcano
+				if sgn(vdiff)~=sgn(p.da) then
+					if abs(p.da)>abs(vdiff)-.05 then
+						a=va+.05*sgn(vdiff)--fixed angle
+						p.da=0
+					end
+				end
+			end			
+		else
+			local pdead=pdeads[p.id]
+			if pdead.⧗>60 then
+					local pda=atan2(pdead.x,pdead.y)
+					local op=p.id==1 and ps[2] or ps[1]
+					local opx,opy=gpos(op)
+					local diff=sad(pda,atan2(opx,opy))
+				if anykey(p.id) then
+					if abs(diff)>.075 then
+						p.enabled=true
+						p.parent=nil
+						p.x,p.y,p.da=0,pdead.y,0
+						p.dx,p.dy,p.dm,p.gr=0,0,0,true
+						p.m=p.tm
+						p.d=1
+						addchild(e,p)
+						pdead.enabled=false
+						pdead.⧗=0
+						if isrex then cr.enabled=true end
+					end					
+				end
+			end	
+		end
+			
+		--eat leaves
+		if p.enabled then
+			for tree in all(trees) do
+				local myangle=atan2(tree.x,tree.y)
+				local pangle=atan2(p.x,p.y)
+				local diff=sad(myangle,pangle)		
+				
+				if abs(diff)<.1 then
+					tree.ec+=1
+					if tree.ec<60 then
+						local pct=tree.ec/60
+						local ta=atan2(tree.x,tree.y)
+						tree.x=cos(ta+.5)*(-30+18*pct)
+						tree.y=sin(ta+.5)*(-30+18*pct)
+						tree.r=ta+.75+rndr(-.05,.05)
+						
+						--particles
+						lp={}
+						lp.x,lp.y=gpos(p)
+						lp.⧗=4
+						lp.c=tree.c
+						lp.type="point"
+						addchild(e,lp)
+						local a=atan2(p.x,p.y)
+						--move up from body
+						lp.x+=cos(a)*12
+						lp.y+=sin(a)*12
+						--move out toward mouth
+						lp.x+=cos(a+.25)*10*p.d*-1
+						lp.y+=sin(a+.25)*10*p.d*-1
+						lp.dx=rndr(-2,2)
+						lp.dy=rndr(-2,2)
+						lp.f=.8
+						lp.g=.25
+						add(parts,lp)					
+					else
+						streak+=1
+						add(scores,streak)
+	
+					 --points particle
 						tp={}
-						tp.x,tp.y=gpos(fish)
-						tp.⧗=30 tp.c=10
+						tp.x,tp.y=gpos(tree)
+						tp.⧗=30 tp.c=tree.c
 						local a=atan2(tp.x,tp.y)
---						tp.x+=cos(a)*
---						tp.y+=sin(a)*10
+						tp.x+=cos(a)*20
+						tp.y+=sin(a)*20
 						tp.dx,tp.dy=cos(a)*2,sin(a)*2
 						tp.f=.8
 						tp.type="text"
-						tp.id="fish"
-						tp.label=""..#p.cf
+						tp.label="+"..streak
 						add(parts,tp)
-     end								
-			end			
-		end--end spino
-				
-		--rising and falling
-		if not p.gr then
-			p.dm-=1 --gravity
-			p.m+=p.dm
-			if p.m<p.tm then
-				p.gr=true
-				p.m=p.tm
-				p.dm=0
+	
+						del(trees,tree)
+						spawntree()
+					end								
+				end 
 			end
 		end
+	end -- players for-loop
+				
+	--function player collision
+	if ps[1].enabled and ps[2].enabled then
+		local a1=atan2(ps[1].x,ps[1].y)+ps[1].da
+		local a2=atan2(ps[2].x,ps[2].y)+ps[2].da
+		local	diff=sad(a1,a2)
 		
-		local a=atan2(p.x,p.y)
-		
-		--colliding with volcano?
-		for v in all(vs) do
-			local va=atan2(v.x,v.y)
-			local pa=atan2(p.x,p.y)
-			local vdiff=sad(va,pa)
+		if abs(diff)<.025 then			
+			local old_pa_p1=ps[1].da
+			ps[1].da=ps[2].da
+			ps[2].da=old_pa_p1	
+			
+			ps[1].gr=false ps[2].gr=false
+			ps[1].dm=mid(0,ps[1].dm+6,6)
+			ps[2].dm=mid(0,ps[2].dm+6,6) 			
+		end
+				
+	end
+	for p in all(ps) do
+	if p.enabled then
 	
-			--player moving toward volcano
-			if sgn(vdiff)~=sgn(p.da) then
-				if abs(p.da)>abs(vdiff)-.05 then
-					a=va+.05*sgn(vdiff)--fixed angle
-					p.da=0
-				end
-			end
-		end		
-		
+		local a=atan2(p.x,p.y)
+	
 		a+=p.da
 		
 		p.x=cos(a)*p.m
 		p.y=sin(a)*p.m
 		p.r=a+.75--stand upright
 		p.da*=.75--friction
-	else
-		if pdead.⧗>60 then
-			if btn()~=0 then
-				p.enabled=true
-				p.parent=nil
-				p.x,p.y,p.da=0,-p.tm,0
-				p.dx,p.dy,p.dm,p.gr=0,0,0,true
-				p.m=p.tm
-				p.d=1
-				addchild(e,p)
-				pdead.enabled=false
-				pdead.⧗=0
-				if isrex then cr.enabled=true end
-			end
-		end	
 	end
-		
-	--eat leaves
-	if p.enabled then
-		for tree in all(trees) do
-			local myangle=atan2(tree.x,tree.y)
-			local pangle=atan2(p.x,p.y)
-			local diff=sad(myangle,pangle)		
-			
-			if abs(diff)<.1 then
-				tree.ec+=1
-				if tree.ec<60 then
-					local pct=tree.ec/60
-					local ta=atan2(tree.x,tree.y)
-					tree.x=cos(ta+.5)*(-30+18*pct)
-					tree.y=sin(ta+.5)*(-30+18*pct)
-					tree.r=ta+.75+rndr(-.05,.05)
-					
-					--particles
-					lp={}
-					lp.x,lp.y=gpos(p)
-					lp.⧗=4
-					lp.c=tree.c
-					lp.type="point"
-					addchild(e,lp)
-					local a=atan2(p.x,p.y)
-					--move up from body
-					lp.x+=cos(a)*12
-					lp.y+=sin(a)*12
-					--move out toward mouth
-					lp.x+=cos(a+.25)*10*p.d*-1
-					lp.y+=sin(a+.25)*10*p.d*-1
-					lp.dx=rndr(-2,2)
-					lp.dy=rndr(-2,2)
-					lp.f=.8
-					lp.g=.25
-					add(parts,lp)					
-				else
-					streak+=1
-					add(scores,streak)
-
-				 --points particle
-					tp={}
-					tp.x,tp.y=gpos(tree)
-					tp.⧗=30 tp.c=tree.c
-					local a=atan2(tp.x,tp.y)
-					tp.x+=cos(a)*20
-					tp.y+=sin(a)*20
-					tp.dx,tp.dy=cos(a)*2,sin(a)*2
-					tp.f=.8
-					tp.type="text"
-					tp.label="+"..streak
-					add(parts,tp)
-
-					del(trees,tree)
-					spawntree()
-				end								
-			end 
-		end
 	end
+	
 	
 	--trex chase
 	for t in all(trexs) do	
-		if p.enabled then
-			pa=atan2(p.x,p.y)
-			ta=atan2(t.x,t.y)
-			
-			--player killed
-			diff=sad(pa,ta)
-			if abs(diff)<.05 then
-				playerdied()
-			elseif abs(diff)<.3 then
-				ta+=t.s*sgn(diff)*-1
-				t.x=cos(ta)*36
-				t.y=sin(ta)*36
-				t.r=ta+.75
-				t.d=sgn(diff)
-				if ⧗%8<4 then --alternate
-					t.fr=2
-				else
-					t.fr=3
-				end
-				if ⧗%8==5 then --stomp
-					shake=12
-				end
-			else
-				t.fr=1
+
+		local pa=.5		
+		for p in all(ps) do
+			if p.enabled then
+				local plyra=atan2(p.x,p.y)
+				local tpdiff=sad(t.a,plyra)				
+				if abs(tpdiff)<abs(pa) then pa=tpdiff pid=p.id end
+				if abs(tpdiff)<.05 then playerdied(p.id) end
 			end
-		else
-			t.fr=1		
 		end
-	end	
+		
+		t.fr=1
+		if abs(pa)<.3 then
+			t.da=sgn(pa)*t.s
+			t.d=sgn(t.da)*-1
+			t.a+=t.da
+			t.r=t.a+.75
+			polartocart(t)	
+			t.fr=(⧗%8<4) and 2 or 3
+			if ⧗%8==5 then	shake=12 end --stomp
+		end
+	end		
 end
 
 function _draw()
 	cls()
-	
-	--stars attempt
---	for i=1,500 do
---		local a=(i+stara)*1.618
---		local r=8*i--c*sqrt(i)
---		local x=cos(a)*r
---		local y=sin(a)*r
---		if mid(0,x,128)==x and
---			mid(0,y,128)==y then
---				pset(x,y,6)		
---		end
---	end
-	
+		
 	camera(-64,-64)
 	
 	if shake>0 then
@@ -949,21 +1056,21 @@ function _draw()
 --		circ(egg.x,egg.y,4,14)
 	end
 	
-	render_ent(cr)
-		
-	if p.enabled then 
-		render_ent(p)
-	else
-		if pdead.⧗>60 then
-			if ⧗%12<6 then
-				render_ent(pdead)
-			end				
-		end
+	for cr in all(crs) do
+		render_ent(cr)	
 	end
+	
+
 
 	for s in all(sks) do
 		render_ent(s)
 	end
+	
+	for gb in all(gbs) do
+		render_ent(gb)
+	end
+
+	
 	
 	--earth surface,fill
 	if not gameover then
@@ -971,13 +1078,28 @@ function _draw()
 		circ(e.x,e.y,29,e.c)
 --		circ(e.x,e.y,29,12)
 	end
-	--	circ(0,0,3,11)--ctr ref		
+	--	circ(0,0,3,11)--ctr ref	
+	
+		for p in all(ps) do
+		if p.enabled then 
+			render_ent(p)
+		else
+			local pdead=pdeads[p.id]
+			if pdead.⧗>60 then
+				if ⧗%12<6 then
+					render_ent(pdead)
+				end				
+			end
+		end		
+	end		
 		
 	--spino fish
-	for f in all(p.cf) do
-		render_ent(f)
+	for p in all(ps) do
+		for f in all(p.cf) do
+			render_ent(f)
+		end
 	end
-
+	
 -- debug spino range
 --	circ(0,0,sdr,10)
 --
@@ -1129,15 +1251,16 @@ function _draw()
 	end
 --	print("streak: "..streak,0,113)
 --	print("score:  "..st,0,120,7)
-	pal(split("129,130,14,132,133,134,135,136,137,138,139,140,141,142,143,0"),1)
+--	pal(split("129,130,14,132,133,134,135,136,137,138,139,140,141,142,143,0"),1)
+	pal(split("129,130,14,132,133,134,135,136,137,138,139,12,141,142,143,0"),1)
 end
 
-function playerdied()
+function playerdied(id)
 	streak=0
+	local	p=ps[id]
 	p.enabled=false
-	pdead.enabled=true
+	pdeads[id].enabled=true
 	p.dm,p.m,p.gr=0,37,true
-	mult=0
 	local px,py=gpos(p)
 	local dinoparts=ent2lineparts(p)
 	for dp in all(dinoparts) do
@@ -1146,6 +1269,8 @@ function playerdied()
 		dp.dr=.0025
 		add(parts,dp)
 	end
+	
+	cr=crs[id]
 	
 	if cr.enabled then
 		cr.enabled=false
@@ -1160,7 +1285,7 @@ function playerdied()
 end
 
 function drop_fish()
-	for fish in all(p.cf) do
+	for fish in all(ps[1].cf) do
 		local f=new_ent()
 		f.x,f.y=gpos(p.jaw)
 		f.dx=cos(pa+.5)*5
@@ -1202,6 +1327,16 @@ function doparticles()
 end
 -->8
 --utils
+
+function anykey(p)
+	p=p or 1
+	return (btn() & (p==1 and 0x3f or 0x3f00))!=0
+end
+
+function polartocart(e)
+	e.x=cos(e.a)*e.m
+	e.y=sin(e.a)*e.m
+end
 
 function dist(x1,y1,x2,y2)
 	return sqrt((x1-x2) * (x1-x2)+(y1-y2)*(y1-y2))
@@ -1517,6 +1652,16 @@ function render_ent_m(e)
 end
 -->8
 --things
+function spawngrubs()
+	local grub=new_ent()
+	grub.frames={grub1,grub2}	
+	grub.state="rising"
+	grub.m=26 grub.⧗=0
+	grub.c=10 grub.hpm=20 grub.hp=grub.hpm
+	add(gbs,grub)
+	addchild(e,grub)
+end
+
 function spawntree()
 	local a=rnd()
 	local t={x=cos(a)*30,y=sin(a)*30,
@@ -1549,14 +1694,19 @@ function spawnfish()
 end
 
 function spawntrex()
-	local t={x=0,y=0,r=0,d=1,c=14,s=.005,
-		enabled=true,
-		fr=1,frames={trexidle,trexrun1,trexrun2,}
-	}
+	
+	local t=new_ent()
+	t.frames={trexidle,trexrun1,trexrun2,}
+	t.c=14 t.s=.005
+	t.m=34
+--	local t={x=0,y=0,r=0,d=1,c=14,s=.005,
+--		enabled=true,
+--		fr=1,frames={trexidle,trexrun1,trexrun2,}
+--	}
 	
 	t.x=0
-	t.y=36
-	t.r=.5
+--	t.y=36
+--	t.r=.5
 	t.parent=e
 	add(trexs,t)
 end
@@ -1595,8 +1745,8 @@ end
 --new valid entity with defaults
 function new_ent()
 	local e={}
-	e.x,e.y,e.r,e.d,e.fr,e.enabled=
-	0,0,0,1,1,true
+	e.x,e.y,e.r,e.a,e.da,e.d,e.fr,e.enabled=
+	0,0,0,0,0,1,1,true
 	e.dx,e.dy,e.dr=
 	0,0,0
 	return e
@@ -1617,13 +1767,18 @@ spino_walkout_up=split("-0.5308,-19.0072,-2.2412,-10.545,-1.676,-6.5319,-4.9932,
 fish_idle=split("2.966,0.3563,0.3131,-1.9715,-2.4948,-0.1495,-4.4568,-1.4231,-3.639,2.1466,-2.3091,0.9423,0.0767,2.289")
 
 shark_fin=split("-3.2515,-28.8674,1.1896,-33.4672,5.4721,-35.3705,5.948,-34.0223,5.3928,-31.8017,5.6307,-29.5019,7.0582,-27.2813,-3.3309,-27.5192")
---shark_attack=split("19.728376,-19.11977,30.756013,-20.049671,24.669945,-14.094205,23.824988,-9.316868,14.353986,-13.740212,-2.928298,-23.977959,-5.296749,-24.45562,-1.825649,-25.622015,-0.500047,-30.307026,-4.150279,-29.662141,-4.539355,-32.53587,-7.205545,-31.761019,-8.150484,-34.745707,-8.323043,-37.558755,-2.034523,-36.097637,1.803167,-32.615881,7.974872,-35.743646,13.028208,-36.170908,10.594297,-31.659434,10.573627,-27.061166")
 shark_attack=split("22.202957,-15.366927,15.483154,-16.376375,-2.408022,-26.97482,-4.859918,-27.46931,-1.266524,-28.676799,0.105782,-33.526873,-3.673056,-32.859268,-4.07584,-35.834244,-6.835965,-35.032094,-7.814196,-38.121939,-6.022431,-45.549607,-2.263571,-40.961909,4.826343,-35.168719,10.148187,-37.093079,15.379563,-37.535395,12.8599,-32.864972,12.8385,-28.022597")
-
 
 ovi_idle=split("6.508674,-10.950344,7.798465,-10.501721,8.359244,-13.13738,5.162806,-12.969147,3.816937,-9.268008,-5.491988,-13.081302,-12.333487,-12.071901,-5.884533,-11.511122,-3.417107,-7.697828,-5.828455,-6.183725,-8.015492,-1.192796,-5.267677,-0.463784,-4.987287,-1.697496,-6.221,-2.202197,-4.65082,-4.613545,-0.388903,-6.07157,-1.342226,-3.996689,1.349511,-0.29555,3.031847,-0.632017,0.396187,-4.164922,3.929093,-6.800582,5.106728,-4.333156,4.770261,-2.370431,6.284363,-3.43591,8.415321,-3.099443,7.686309,-5.398635,5.611428,-6.688426")
 ovi_run1=split("7.196866,-8.870799,9.271747,-8.702565,9.832526,-11.338224,6.636088,-11.169991,3.103183,-9.431577,-13.047242,-12.23547,-4.130861,-7.861397,-5.981431,-5.618282,-8.729246,-1.356365,-7.102988,-0.571274,-4.972029,-3.711635,-0.597956,-5.001426,0.635757,-3.31909,4.617285,-1.46852,6.299621,-1.804987,2.542404,-4.60888,3.944351,-6.066905,7.084711,-5.618282,8.206268,-6.627683,5.626686,-7.524929")
 ovi_run2=split("7.309022,-8.887946,9.383903,-8.719712,9.944682,-11.355371,6.748244,-11.187138,3.215338,-9.448724,-12.935086,-12.252617,-4.018705,-7.878544,-1.817649,-4.710145,-2.616759,-3.111925,-2.448526,-1.569785,-1.158734,-1.429589,-0.177373,-3.588588,1.617119,-1.766056,2.598482,-1.850176,1.420847,-4.990536,4.140624,-6.532678,7.196867,-5.635432,8.318423,-6.644833,5.738842,-7.542079")
+
+mams_idle=split"-1.249,-0.727,-1.529,-2.465,-0.688,-5.269,-1.137,-7.12,2.564,-7.905,1.331,-4.989,2.564,-3.138,1.106,-3.026,1.835,-0.671,-0.352,0.17,-2.987,0.675"
+mams_run1=split"-3.275,-3.431,-1.787,-4.374,1.122,-4.705,2.646,-5.846,4.825,-2.753,1.659,-2.739,0.444,-0.876,-0.234,-2.172,-1.074,-0.827,-2.653,-2.281,-6.369,-2.402"
+mams_run2=split"-3.275,-3.431,-1.787,-4.374,1.122,-4.705,2.646,-5.846,4.825,-2.753,1.659,-2.739,2.35,-0.82,-0.234,-2.172,-2.757,-0.602,-2.653,-2.281,-6.369,-2.402"
+
+grub1=split"-3,0,-3,-2,0,-4,3,-2,3,0,0,-2"
+grub2=split"-3,0,-3,-2,0,-2,3,-2,3,0,0,0"
 
 --28x30
 earthconts=split("-2.3,-22.75,-3.06,-20.37,-2.26,-20.17,0.72,-20.33,0.33,-21.7,3.23,-21.5,6.95,-19.3,4.9,-17.93,3.36,-12.59,2.03,-10.94,0.41,-9.76,-1.83,-9.37,-3.79,-8.26,-2.69,-5.77,-0.62,-4.86,3.07,-0.01,11.13,-0.7,21.76,5.83,18.57,14.49,5.58,26.4,4.94,26.52,4.47,25.11,7.72,15.24,7.16,12.86,3.94,8.1,1.47,2.56,-4.44,-2.21,-8.94,-4.73,-14.4,-12.8,-14.56,-14.2,-13.54,-17,-13.51,-20.38,-14.03,-20.94,-14.76,-21.27,-16.85,-20.8,-14.58,-22.98,-11.51,-23.99,-10.41,-23.44,-3,-23.4,-2.3,-22.75")
@@ -1641,17 +1796,11 @@ impactpts=translate(split("9.2,.81,12.47,4.96,17.7,5.71,15.74,10.62,17.7,15.53,1
 
 volcanopts=split("0.51,-5.58,3.95,-7.66,4.34,-4.68,5.81,-0.56,8.39,5.51,-6.37,5.51,-4.72,0.53,-4.49,-3.49,-3,-2.73,-2.58,-6.88,0.51,-5.58")
 
---bigonepts=split("-3.94,12.52,8.19,11,10,-0.93,7.61,-11.19,-2.5,-11.17,-13.37,-13.36,-11.22,-2.23,-9.72,4.15,-3.94,12.52")
---bigonepts=split("18.69,8.41,19.42,3.67,21.58,-1.29,16.31,-4.76,16.48,-10.04,14.44,-15.3,10.58,-20.11,4.71,-21.44,-0.46,-15.2,-6.84,-19.45,-8.73,-12.36,-14.23,-11.02,-19.36,-7.54,-16.22,-1.17,-16.37,3.54,-19.24,9.79,-17.33,15.67,-10.4,16.79,-5.89,19.19,-1.31,22.88,3.6,16.78,7.74,16.19,13.09,16.32,17.77,13.74,18.69,8.41")
---bigonepts=split("17.91,8.7,19.11,3.75,19.71,-1.4,17.31,-6.02,15.47,-10.76,12.24,-14.89,7.9,-18.11,2.64,-19.48,-2.57,-17.79,-7.98,-17.98,-11.79,-14.16,-15.99,-11.13,-19.3,-6.89,-19.45,-1.49,-19.5,3.59,-19.31,8.97,-16.91,13.87,-12.35,16.87,-7.83,19.43,-2.92,21.44,2.22,19.79,7.02,18.66,11.77,16.82,15.75,13.44,17.91,8.7")
 bigonepts=split("18.92,8.7,20.12,3.75,20.72,-1.4,18.32,-6.02,16.48,-10.76,13.25,-14.89,8.92,-18.11,3.65,-19.48,-1.56,-17.79,-6.97,-17.98,-10.78,-14.16,-14.98,-11.13,-18.29,-6.89,-18.43,-1.49,-19.49,2.59,-18.3,8.97,-15.9,13.87,-11.33,16.87,-6.82,19.43,-1.91,21.44,3.23,19.79,8.03,18.66,12.79,16.82,16.76,13.44,18.92,8.7")
 
---pteropts1=split("-12.5,2.5,-4.19,-2.28,0.9,-0.48,2.5,-1.5,1.5,-4.5,4.5,-3.5,6.5,-1.5,9.5,0.5,4.5,0.5,2.89,1.66,0.5,1.5,4.5,4.5,2.5,4.5,-0.99,9.36,-3.45,4.97,-2.6,3.03,-4.63,0.75,-5.5,1.5,-7.54,1.14,-12.5,2.5")
---pteropts2=split("-12.5,6.5,-4.19,1.72,-3.5,-4.5,0.9,3.52,2.5,2.5,1.5,-0.5,4.5,0.5,6.5,2.5,9.5,4.5,4.5,4.5,2.89,5.66,0.5,5.5,-2.6,7.03,-4.63,4.75,-5.5,5.5,-7.54,5.14,-12.5,6.5")
 pteropts1=split("-9.49,2.5,-1.18,-2.28,-0.49,-8.5,3.91,-0.48,5.51,-1.5,4.51,-4.5,7.51,-3.5,9.51,-1.5,12.51,0.5,7.51,0.5,5.9,1.66,3.51,1.5,0.41,3.03,-1.62,0.75,-2.49,1.5,-4.53,1.14,-9.49,2.5")
 pteropts2=split("-10.49,1.5,-2.18,-3.28,2.91,-1.48,4.51,-2.5,3.51,-5.5,6.51,-4.5,8.51,-2.5,11.51,-0.5,6.51,-0.5,4.9,0.66,2.51,0.5,6.51,3.5,4.51,3.5,1.02,8.36,-1.44,3.97,-0.59,2.03,-2.62,-0.25,-3.49,0.5,-5.53,0.14,-10.49,1.5")
 
---eggpts=split("1.49,-4.05,1.37,-4.16,1.24,-4.25,1.11,-4.33,0.98,-4.39,0.86,-4.44,0.74,-4.47,0.62,-4.49,0.51,-4.5,0.4,-4.49,0.28,-4.47,0.16,-4.44,0.04,-4.39,-0.09,-4.33,-0.22,-4.25,-0.35,-4.16,-0.47,-4.05,-0.95,-3.37,-1.55,-2.19,-2.13,-0.68,-2.54,0.97,-2.63,2.57,-2.25,3.94,-1.25,4.9,0.51,5.26,2.27,4.9,3.27,3.94,3.65,2.57,3.56,0.97,3.15,-0.68,2.57,-2.19,1.97,-3.37,1.49,-4.05,1.49,-4.05")
 eggpts=split("1.51,2.5,2.51,1.5,2.51,-1.5,0.51,-3.5,-1.49,-1.5,-1.49,1.5,-0.49,2.5,1.51,2.5")
 
 crownpts=split("-4,-4,-2,-2,0,-4,2,-2,4,-4,4,2,-4,2,-4,-4")
